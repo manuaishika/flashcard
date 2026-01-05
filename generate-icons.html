@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px;
+      display: block;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #4A90E2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    .instructions {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Word Vault - Icon Generator</h1>
+  <div class="instructions">
+    <p>This will generate simple placeholder icons for your extension.</p>
+    <p>Click "Generate Icons" then right-click each canvas and "Save image as..."</p>
+    <p>Save as: icon16.png, icon48.png, icon128.png</p>
+  </div>
+  
+  <button onclick="generateIcons()">Generate Icons</button>
+  
+  <div id="canvases"></div>
+  
+  <script>
+    function generateIcons() {
+      const sizes = [16, 48, 128];
+      const container = document.getElementById('canvases');
+      container.innerHTML = '';
+      
+      sizes.forEach(size => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        canvas.id = `canvas${size}`;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw a simple gradient background
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, '#4A90E2');
+        gradient.addColorStop(1, '#357ABD');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw a simple "W" letter
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${size * 0.6}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('W', size / 2, size / 2);
+        
+        container.appendChild(canvas);
+        
+        const label = document.createElement('p');
+        label.textContent = `icon${size}.png - Right click to save`;
+        container.appendChild(label);
+      });
+    }
+  </script>
+</body>
+</html>
+
