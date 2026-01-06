@@ -1,5 +1,3 @@
-# Word Vault
-
 A personal semantic memory system for capturing words you encounter while reading.
 
 ## Philosophy
