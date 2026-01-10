@@ -10,13 +10,54 @@
     }
     
     body {
-      width: 380px;
-      padding: 20px;
+      width: 420px;
+      max-height: 600px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
+      background: white;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e8e8e8;
       background: #fafafa;
     }
     
+    .tab {
+      flex: 1;
+      padding: 12px 16px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    
+    .tab:hover {
+      background: #f0f0f0;
+    }
+    
+    .tab.active {
+      color: #4A90E2;
+      border-bottom-color: #4A90E2;
+      background: white;
+    }
+    
+    .tab-content {
+      display: none;
+      padding: 20px;
+      max-height: 560px;
+      overflow-y: auto;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Save Tab Styles */
     .header {
       margin-bottom: 20px;
       font-weight: 600;
@@ -66,7 +107,6 @@
       font-size: 16px;
     }
     
-    /* Baseline meaning - faded, collapsible */
     .baseline-container {
       margin-bottom: 16px;
       border-top: 1px solid #e8e8e8;
@@ -80,10 +120,6 @@
       cursor: pointer;
       user-select: none;
       margin-bottom: 8px;
-    }
-    
-    .baseline-toggle:hover {
-      color: #333;
     }
     
     .baseline-label {
@@ -126,7 +162,6 @@
       color: #ccc;
     }
     
-    /* My understanding - primary focus */
     .understanding-field {
       background: white;
       border: 2px solid #4A90E2;
@@ -146,25 +181,6 @@
       min-height: 100px;
       font-size: 15px;
       background: transparent;
-    }
-    
-    .understanding-field textarea:focus {
-      box-shadow: none;
-      border: none;
-    }
-    
-    .understanding-field textarea::placeholder {
-      color: #bbb;
-      font-style: italic;
-    }
-    
-    .context-field {
-      margin-top: 12px;
-    }
-    
-    .context-input {
-      font-size: 12px;
-      color: #666;
     }
     
     .button-group {
@@ -191,28 +207,11 @@
     
     .save-btn:hover {
       background: #357ABD;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-    }
-    
-    .save-btn:active {
-      background: #2A6BA0;
-      transform: translateY(0);
-    }
-    
-    .cancel-btn {
-      background: #f5f5f5;
-      color: #666;
-    }
-    
-    .cancel-btn:hover {
-      background: #e8e8e8;
     }
     
     .status {
       margin-top: 12px;
       font-size: 12px;
-      color: #4A90E2;
       text-align: center;
       min-height: 18px;
       font-weight: 500;
@@ -226,69 +225,186 @@
       color: #27ae60;
     }
     
+    /* Vault Tab Styles */
+    .vault-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .vault-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .vault-btn {
+      padding: 8px 16px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .export-btn {
+      border-color: #4A90E2;
+      color: #4A90E2;
+    }
+    
+    .export-btn:hover {
+      background: #4A90E2;
+      color: white;
+    }
+    
+    .clear-btn {
+      color: #e74c3c;
+      border-color: #e74c3c;
+    }
+    
+    .clear-btn:hover {
+      background: #e74c3c;
+      color: white;
+    }
+    
+    .stats {
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .word-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .word-card {
+      padding: 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+    
+    .word-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .word-meaning {
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+    
+    .word-understanding {
+      font-size: 14px;
+      color: #333;
+      line-height: 1.6;
+      margin-bottom: 10px;
+      padding: 10px;
+      background: white;
+      border-left: 3px solid #4A90E2;
+      border-radius: 4px;
+    }
+    
+    .word-context {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    
+    .word-date {
+      font-size: 11px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    
     .shortcut-hint {
       font-size: 11px;
       color: #999;
-      margin-top: 8px;
+      margin-top: 12px;
       text-align: center;
-    }
-    
-    .loading {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #4A90E2;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 6px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div class="header">Save to Memory</div>
-  
-  <div class="field">
-    <label>Anchor Word</label>
-    <input type="text" id="wordInput" class="word-input" placeholder="word or phrase">
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="save">Save</div>
+    <div class="tab" data-tab="vault">Vault</div>
   </div>
   
-  <!-- Baseline meaning - faded, collapsible -->
-  <div class="baseline-container">
-    <div class="baseline-toggle" id="baselineToggle">
-      <span class="baseline-label">Auto Explanation</span>
-      <span class="baseline-arrow" id="baselineArrow">▸</span>
+  <!-- Save Tab -->
+  <div class="tab-content active" id="saveTab">
+    <div class="header">Save to Memory</div>
+    
+    <div class="field">
+      <label>Anchor Word</label>
+      <input type="text" id="wordInput" class="word-input" placeholder="word or phrase">
     </div>
-    <div class="baseline-meaning empty" id="baselineMeaning">
-      Fetching definition...
+    
+    <div class="baseline-container">
+      <div class="baseline-toggle" id="baselineToggle">
+        <span class="baseline-label">Auto Explanation</span>
+        <span class="baseline-arrow" id="baselineArrow">▸</span>
+      </div>
+      <div class="baseline-meaning empty" id="baselineMeaning">
+        Enter a word to fetch definition
+      </div>
     </div>
+    
+    <div class="field understanding-field">
+      <label>📝 My Understanding (optional)</label>
+      <textarea id="mnemonicInput" placeholder="What does this actually mean to me? My mental model, intuition, mnemonic... (optional)"></textarea>
+    </div>
+    
+    <div class="field">
+      <label>Context (optional)</label>
+      <input type="text" id="contextInput" placeholder="sentence, URL, or note about where you saw it">
+    </div>
+    
+    <div class="button-group">
+      <button class="save-btn" id="saveBtn">Save</button>
+    </div>
+    
+    <div class="status" id="status"></div>
+    <div class="shortcut-hint">Right-click any word → "Save to Word Vault" | Ctrl+Enter to save</div>
   </div>
   
-  <!-- My understanding - primary focus -->
-  <div class="field understanding-field">
-    <label>📝 My Understanding</label>
-    <textarea id="mnemonicInput" placeholder="What does this actually mean to me? My mental model, intuition, mnemonic..."></textarea>
+  <!-- Vault Tab -->
+  <div class="tab-content" id="vaultTab">
+    <div class="vault-header">
+      <div class="header">Your Word Vault</div>
+      <div class="vault-actions">
+        <button class="vault-btn export-btn" id="exportBtn">Export</button>
+        <button class="vault-btn clear-btn" id="clearBtn">Clear</button>
+      </div>
+    </div>
+    
+    <div class="stats" id="stats">Loading...</div>
+    <div class="word-list" id="wordList">Loading...</div>
   </div>
-  
-  <div class="field context-field">
-    <label>Context (optional)</label>
-    <input type="text" id="contextInput" class="context-input" placeholder="sentence, URL, or note about where you saw it">
-  </div>
-  
-  <div class="button-group">
-    <button class="cancel-btn" id="cancelBtn">Cancel</button>
-    <button class="save-btn" id="saveBtn">Save</button>
-  </div>
-  
-  <div class="status" id="status"></div>
-  <div class="shortcut-hint">Ctrl+Enter to save</div>
   
   <script src="popup.js"></script>
 </body>
 </html>
-

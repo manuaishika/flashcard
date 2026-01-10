@@ -1,30 +1,185 @@
-// Popup script - handles word entry UI
-// Phase 1: Personal tool with Google Docs integration via Apps Script
+// Popup script - handles tabs (Save/Vault) and word entry
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Vault Tab Elements (defined first so functions can access them)
+  const stats = document.getElementById('stats');
+  const wordList = document.getElementById('wordList');
+  const exportBtn = document.getElementById('exportBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  
+  // Helper functions
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+  
+  // Vault Tab Functions
+  const loadVault = () => {
+    chrome.storage.local.get(['words'], (result) => {
+      const words = result.words || [];
+      
+      if (stats) stats.textContent = `Total words: ${words.length}`;
+      
+      if (words.length === 0) {
+        if (wordList) {
+          wordList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📚</div>
+              <div style="margin-bottom: 8px;">Your Word Vault is empty</div>
+              <div style="font-size: 12px; color: #999;">Right-click on words while reading to add them</div>
+            </div>
+          `;
+        }
+        return;
+      }
+      
+      words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+      
+      if (wordList) {
+        wordList.innerHTML = words.map(word => `
+          <div class="word-card">
+            <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
+            ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
+            ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
+            ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
+            <div class="word-date">${formatDate(word.dateAdded)}</div>
+          </div>
+        `).join('');
+      }
+    });
+  };
+  
+  const exportAsMarkdown = () => {
+    chrome.storage.local.get(['words'], (result) => {
+      const words = result.words || [];
+      
+      if (words.length === 0) {
+        alert('No words to export');
+        return;
+      }
+      
+      words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+      
+      const markdown = words.map(word => {
+        const lines = [
+          `## ${word.word || 'Untitled'}`,
+          '',
+          `**Date:** ${formatDate(word.dateAdded)}`,
+          ''
+        ];
+        
+        if (word.meaning) {
+          lines.push(`*Auto explanation:* ${word.meaning}`);
+          lines.push('');
+        }
+        
+        if (word.mnemonic) {
+          lines.push(`**My understanding:** ${word.mnemonic}`);
+          lines.push('');
+        }
+        
+        if (word.context) {
+          lines.push(`*Context:* ${word.context}`);
+          lines.push('');
+        }
+        
+        if (word.sourceUrl) {
+          lines.push(`[Source](${word.sourceUrl})`);
+          lines.push('');
+        }
+        
+        lines.push('---');
+        lines.push('');
+        return lines.join('\n');
+      }).join('\n');
+      
+      const header = `# Word Vault\n\n*Exported on ${formatDate(new Date().toISOString())}*\n\nTotal words: ${words.length}\n\n---\n\n`;
+      const fullMarkdown = header + markdown;
+      
+      const blob = new Blob([fullMarkdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `word-vault-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+  
+  const clearAll = () => {
+    if (confirm('Are you sure you want to clear all words? This cannot be undone.')) {
+      chrome.storage.local.set({ words: [] }, () => {
+        loadVault();
+      });
+    }
+  };
+  
+  if (exportBtn) exportBtn.addEventListener('click', exportAsMarkdown);
+  if (clearBtn) clearBtn.addEventListener('click', clearAll);
+  
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const targetTab = tab.dataset.tab;
+      
+      // Update tab states
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      
+      // Update content states
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+        if (content.id === targetTab + 'Tab') {
+          content.classList.add('active');
+        }
+      });
+      
+      // Load vault when switching to vault tab
+      if (targetTab === 'vault') {
+        loadVault();
+      }
+    });
+  });
+  
+  // Save Tab Elements
   const wordInput = document.getElementById('wordInput');
   const mnemonicInput = document.getElementById('mnemonicInput');
   const contextInput = document.getElementById('contextInput');
   const saveBtn = document.getElementById('saveBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
   const status = document.getElementById('status');
   const baselineMeaning = document.getElementById('baselineMeaning');
   const baselineToggle = document.getElementById('baselineToggle');
   const baselineArrow = document.getElementById('baselineArrow');
   
-  let currentMeaning = ''; // Store the fetched meaning
+  let currentMeaning = '';
   
   // Toggle baseline meaning visibility
-  baselineToggle.addEventListener('click', () => {
-    const isExpanded = baselineMeaning.classList.contains('show');
-    if (isExpanded) {
-      baselineMeaning.classList.remove('show');
-      baselineArrow.classList.remove('expanded');
-    } else {
-      baselineMeaning.classList.add('show');
-      baselineArrow.classList.add('expanded');
-    }
-  });
+  if (baselineToggle) {
+    baselineToggle.addEventListener('click', () => {
+      const isExpanded = baselineMeaning.classList.contains('show');
+      if (isExpanded) {
+        baselineMeaning.classList.remove('show');
+        baselineArrow.classList.remove('expanded');
+      } else {
+        baselineMeaning.classList.add('show');
+        baselineArrow.classList.add('expanded');
+      }
+    });
+  }
   
   const fetchBasicMeaning = (word) => {
     const cleaned = (word || '').trim();
@@ -38,7 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
     baselineMeaning.classList.add('empty');
     currentMeaning = '';
 
-    // Free dictionary API – good enough baseline, you edit your own understanding
     fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(cleaned))
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
@@ -68,28 +222,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check if there's a pending word from right-click or shortcut
   chrome.storage.local.get(['pendingWord', 'sourceUrl'], (result) => {
     if (result.pendingWord) {
+      // Switch to save tab
+      document.querySelector('[data-tab="save"]').click();
+      
       wordInput.value = result.pendingWord;
       contextInput.value = result.sourceUrl || '';
       
-      // Clear pending word
       chrome.storage.local.remove(['pendingWord', 'sourceUrl']);
-      
-      // Auto-fetch basic meaning in background
       fetchBasicMeaning(wordInput.value);
-
-      // Focus on your note (mnemonic) – this is the real artifact
       setTimeout(() => mnemonicInput.focus(), 100);
     } else {
-      // Try to get selected text from active tab
+      // Check if text is selected
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]) {
           chrome.tabs.sendMessage(tabs[0].id, { action: 'getSelectedText' }, (response) => {
             if (response && response.text) {
+              document.querySelector('[data-tab="save"]').click();
               wordInput.value = response.text;
               fetchBasicMeaning(wordInput.value);
               setTimeout(() => mnemonicInput.focus(), 100);
-            } else {
-              wordInput.focus();
             }
           });
         }
@@ -97,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Save function - sends to Google Apps Script
+  // Save function
   const saveWord = async () => {
     const word = wordInput.value.trim();
     if (!word) {
@@ -106,94 +257,46 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    if (!mnemonicInput.value.trim()) {
-      status.textContent = 'Please add your understanding';
-      status.className = 'status error';
-      mnemonicInput.focus();
-      return;
-    }
-    
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const wordCard = {
         word: word,
-        meaning: currentMeaning || '', // Auto-fetched baseline
-        mnemonic: mnemonicInput.value.trim(), // Your real understanding
+        meaning: currentMeaning || '',
+        mnemonic: mnemonicInput.value.trim(),
         context: contextInput.value.trim() || (tabs[0] ? tabs[0].url : ''),
         sourceUrl: tabs[0] ? tabs[0].url : '',
-        dateAdded: new Date().toISOString().slice(0, 10) // YYYY-MM-DD format
+        dateAdded: new Date().toISOString()
       };
       
       saveBtn.disabled = true;
       status.innerHTML = '<span class="loading"></span>Saving...';
       status.className = 'status';
       
-      // Get Google Script URL from storage
-      chrome.storage.local.get(['googleScriptUrl'], async (result) => {
-        const scriptUrl = result.googleScriptUrl;
-        
-        if (scriptUrl) {
-          // Try Google Docs first (Phase 1)
-          try {
-            const response = await fetch(scriptUrl, {
-              method: 'POST',
-              mode: 'no-cors', // Required for Apps Script
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(wordCard)
-            });
-            
-            // Note: no-cors means we can't read response, but that's OK
-            status.textContent = 'Saved to Google Doc! ✓';
-            status.className = 'status success';
-            
-            // Clear inputs
-            wordInput.value = '';
-            mnemonicInput.value = '';
-            contextInput.value = '';
-            currentMeaning = '';
-            baselineMeaning.textContent = 'Enter a word to fetch definition';
-            baselineMeaning.classList.add('empty');
-            
-            // Close popup after short delay
-            setTimeout(() => {
-              window.close();
-            }, 800);
-            return;
-          } catch (error) {
-            console.error('Google Docs save failed:', error);
-            // Fall through to local storage backup
-          }
+      // Save to local storage
+      chrome.runtime.sendMessage({
+        action: 'saveWord',
+        ...wordCard
+      }, (response) => {
+        saveBtn.disabled = false;
+        if (response && response.success) {
+          status.textContent = 'Saved to Word Vault! ✓';
+          status.className = 'status success';
+          
+          // Clear inputs
+          wordInput.value = '';
+          mnemonicInput.value = '';
+          contextInput.value = '';
+          currentMeaning = '';
+          baselineMeaning.textContent = 'Enter a word to fetch definition';
+          baselineMeaning.classList.add('empty');
+          
+          // Switch to vault tab to show the new word
+          setTimeout(() => {
+            document.querySelector('[data-tab="vault"]').click();
+          }, 500);
+        } else {
+          status.textContent = 'Error saving';
+          status.className = 'status error';
         }
-        
-        // Fallback: Save to local storage (so nothing is lost)
-        chrome.runtime.sendMessage({
-          action: 'saveWord',
-          ...wordCard
-        }, (response) => {
-          saveBtn.disabled = false;
-          if (response && response.success) {
-            status.textContent = 'Saved locally (Google Docs not configured)';
-            status.className = 'status success';
-            
-            // Clear inputs
-            wordInput.value = '';
-            mnemonicInput.value = '';
-            contextInput.value = '';
-            currentMeaning = '';
-            baselineMeaning.textContent = 'Enter a word to fetch definition';
-            baselineMeaning.classList.add('empty');
-            
-            // Close popup after short delay
-            setTimeout(() => {
-              window.close();
-            }, 800);
-          } else {
-            status.textContent = 'Error saving';
-            status.className = 'status error';
-            saveBtn.disabled = false;
-          }
-        });
       });
     });
   };
@@ -201,19 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Event listeners
   saveBtn.addEventListener('click', saveWord);
   
-  cancelBtn.addEventListener('click', () => {
-    window.close();
-  });
-  
-  // Ctrl+Enter to save (anywhere)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      saveWord();
+      if (document.getElementById('saveTab').classList.contains('active')) {
+        saveWord();
+      }
     }
   });
   
-  // Word input: Enter fetches meaning and focuses understanding
   wordInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -222,7 +321,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Understanding field: Ctrl+Enter saves
   mnemonicInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -230,12 +328,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Context field: Enter saves
   contextInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       saveWord();
     }
   });
+  
+  // Load vault initially if on vault tab
+  setTimeout(() => {
+    if (document.getElementById('vaultTab') && document.getElementById('vaultTab').classList.contains('active')) {
+      loadVault();
+    }
+  }, 100);
 });
-

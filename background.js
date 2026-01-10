@@ -36,13 +36,34 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
-// Right-click context menu: highlight → right-click → "Save to Word Vault"
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'word-vault-save',
-    title: 'Save to Word Vault',
-    contexts: ['selection']
+// Right-click context menu: highlight → right-click → "Save 'word' to Word Vault"
+const createContextMenu = () => {
+  chrome.contextMenus.removeAll(() => {
+    // Create new menu with dynamic title showing the selected word
+    chrome.contextMenus.create({
+      id: 'word-vault-save',
+      title: 'Save "%s" to Word Vault',  // Chrome automatically replaces %s with selected text
+      contexts: ['selection']
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Context menu creation error:', chrome.runtime.lastError);
+      } else {
+        console.log('Context menu created successfully');
+      }
+    });
   });
+};
+
+// Create context menu immediately when script loads
+createContextMenu();
+
+// Also create on install and startup (in case extension reloaded)
+chrome.runtime.onInstalled.addListener(() => {
+  createContextMenu();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  createContextMenu();
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
