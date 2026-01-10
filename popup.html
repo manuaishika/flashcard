@@ -10,69 +10,178 @@
     }
     
     body {
-      width: 320px;
-      padding: 16px;
+      width: 380px;
+      padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
+      background: #fafafa;
     }
     
     .header {
-      margin-bottom: 16px;
+      margin-bottom: 20px;
       font-weight: 600;
       color: #333;
+      font-size: 16px;
     }
     
     .field {
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
     
     label {
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
       font-size: 12px;
       color: #666;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     input, textarea {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
       font-family: inherit;
-      font-size: 13px;
+      font-size: 14px;
+      background: white;
     }
     
     input:focus, textarea:focus {
       outline: none;
       border-color: #4A90E2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
     }
     
     textarea {
       resize: vertical;
-      min-height: 60px;
+      min-height: 80px;
+      line-height: 1.5;
     }
     
     .word-input {
-      font-weight: 500;
+      font-weight: 600;
       color: #333;
+      font-size: 16px;
+    }
+    
+    /* Baseline meaning - faded, collapsible */
+    .baseline-container {
+      margin-bottom: 16px;
+      border-top: 1px solid #e8e8e8;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 12px 0;
+    }
+    
+    .baseline-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 8px;
+    }
+    
+    .baseline-toggle:hover {
+      color: #333;
+    }
+    
+    .baseline-label {
+      font-size: 11px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+      margin: 0;
+    }
+    
+    .baseline-arrow {
+      margin-left: 6px;
+      font-size: 10px;
+      color: #999;
+      transition: transform 0.2s;
+    }
+    
+    .baseline-arrow.expanded {
+      transform: rotate(90deg);
+    }
+    
+    .baseline-meaning {
+      font-size: 12px;
+      color: #999;
+      line-height: 1.5;
+      padding: 8px;
+      background: #f8f8f8;
+      border-radius: 4px;
+      border-left: 2px solid #e0e0e0;
+      display: none;
+    }
+    
+    .baseline-meaning.show {
+      display: block;
+    }
+    
+    .baseline-meaning.empty {
+      font-style: italic;
+      color: #ccc;
+    }
+    
+    /* My understanding - primary focus */
+    .understanding-field {
+      background: white;
+      border: 2px solid #4A90E2;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 4px;
+    }
+    
+    .understanding-field label {
+      color: #4A90E2;
+      font-weight: 600;
+    }
+    
+    .understanding-field textarea {
+      border: none;
+      padding: 0;
+      min-height: 100px;
+      font-size: 15px;
+      background: transparent;
+    }
+    
+    .understanding-field textarea:focus {
+      box-shadow: none;
+      border: none;
+    }
+    
+    .understanding-field textarea::placeholder {
+      color: #bbb;
+      font-style: italic;
+    }
+    
+    .context-field {
+      margin-top: 12px;
+    }
+    
+    .context-input {
+      font-size: 12px;
+      color: #666;
     }
     
     .button-group {
       display: flex;
-      gap: 8px;
-      margin-top: 16px;
+      gap: 10px;
+      margin-top: 20px;
     }
     
     button {
       flex: 1;
-      padding: 10px;
+      padding: 12px;
       border: none;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     
     .save-btn {
@@ -82,10 +191,13 @@
     
     .save-btn:hover {
       background: #357ABD;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
     }
     
     .save-btn:active {
       background: #2A6BA0;
+      transform: translateY(0);
     }
     
     .cancel-btn {
@@ -98,11 +210,20 @@
     }
     
     .status {
-      margin-top: 8px;
+      margin-top: 12px;
       font-size: 12px;
       color: #4A90E2;
       text-align: center;
-      min-height: 16px;
+      min-height: 18px;
+      font-weight: 500;
+    }
+    
+    .status.error {
+      color: #e74c3c;
+    }
+    
+    .status.success {
+      color: #27ae60;
     }
     
     .shortcut-hint {
@@ -111,29 +232,52 @@
       margin-top: 8px;
       text-align: center;
     }
+    
+    .loading {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #4A90E2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 6px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
-  <div class="header">Save Word</div>
+  <div class="header">Save to Memory</div>
   
   <div class="field">
-    <label>Word</label>
-    <input type="text" id="wordInput" class="word-input" placeholder="word">
+    <label>Anchor Word</label>
+    <input type="text" id="wordInput" class="word-input" placeholder="word or phrase">
   </div>
   
-  <div class="field">
-    <label>Meaning</label>
-    <input type="text" id="meaningInput" placeholder="quick definition">
+  <!-- Baseline meaning - faded, collapsible -->
+  <div class="baseline-container">
+    <div class="baseline-toggle" id="baselineToggle">
+      <span class="baseline-label">Auto Explanation</span>
+      <span class="baseline-arrow" id="baselineArrow">▸</span>
+    </div>
+    <div class="baseline-meaning empty" id="baselineMeaning">
+      Fetching definition...
+    </div>
   </div>
   
-  <div class="field">
-    <label>How I remember it</label>
-    <textarea id="mnemonicInput" placeholder="your mnemonic or intuition"></textarea>
+  <!-- My understanding - primary focus -->
+  <div class="field understanding-field">
+    <label>📝 My Understanding</label>
+    <textarea id="mnemonicInput" placeholder="What does this actually mean to me? My mental model, intuition, mnemonic..."></textarea>
   </div>
   
-  <div class="field">
+  <div class="field context-field">
     <label>Context (optional)</label>
-    <input type="text" id="contextInput" placeholder="where you saw it">
+    <input type="text" id="contextInput" class="context-input" placeholder="sentence, URL, or note about where you saw it">
   </div>
   
   <div class="button-group">
@@ -142,7 +286,7 @@
   </div>
   
   <div class="status" id="status"></div>
-  <div class="shortcut-hint">Press Enter to save</div>
+  <div class="shortcut-hint">Ctrl+Enter to save</div>
   
   <script src="popup.js"></script>
 </body>

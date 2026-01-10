@@ -1,5 +1,19 @@
-// Service worker - handles keyboard shortcuts
+// Service worker - handles keyboard shortcuts and context menu
 
+function openWordPopup(word, url) {
+  if (!word) return;
+
+  chrome.storage.local.set({ pendingWord: word, sourceUrl: url || '' }, () => {
+    chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html'),
+      type: 'popup',
+      width: 360,
+      height: 500
+    });
+  });
+}
+
+// Keyboard shortcut (optional, you can ignore and just use right-click)
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'save-word') {
     // Get active tab
@@ -14,20 +28,26 @@ chrome.commands.onCommand.addListener((command) => {
         }, (results) => {
           const word = results && results[0]?.result;
           if (word) {
-            // Store word temporarily and open popup window
-            chrome.storage.local.set({ pendingWord: word, sourceUrl: tabs[0].url }, () => {
-              // Create a popup window instead of trying to open action popup
-              chrome.windows.create({
-                url: chrome.runtime.getURL('popup.html'),
-                type: 'popup',
-                width: 360,
-                height: 500
-              });
-            });
+            openWordPopup(word, tabs[0].url);
           }
         });
       }
     });
+  }
+});
+
+// Right-click context menu: highlight → right-click → "Save to Word Vault"
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'word-vault-save',
+    title: 'Save to Word Vault',
+    contexts: ['selection']
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'word-vault-save' && info.selectionText) {
+    openWordPopup(info.selectionText.trim(), tab && tab.url);
   }
 });
 
