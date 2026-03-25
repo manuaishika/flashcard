@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Word Vault",
   "version": "1.0.0",
-  "description": "Personal semantic memory for words you encounter",
+  "description": "A personal semantic memory system for capturing words you encounter while reading. Right-click any word to save with your understanding.",
   "permissions": [
     "storage",
     "activeTab",

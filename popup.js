@@ -24,10 +24,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   
+  // Selection state
+  let selectedWordIds = new Set();
+  let selectionMode = false;
+  let allWords = [];
+  
   // Vault Tab Functions
   const loadVault = () => {
-    chrome.storage.local.get(['words'], (result) => {
+    chrome.storage.local.get(['words', 'groups'], (result) => {
       const words = result.words || [];
+      allWords = words;
       
       if (stats) stats.textContent = `Total words: ${words.length}`;
       
@@ -41,21 +47,276 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           `;
         }
+        loadGroups(result.groups || {});
         return;
       }
       
       words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
       
       if (wordList) {
-        wordList.innerHTML = words.map(word => `
-          <div class="word-card">
-            <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
-            ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
-            ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
-            ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
-            <div class="word-date">${formatDate(word.dateAdded)}</div>
+        wordList.innerHTML = words.map((word, index) => {
+          const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+          const isSelected = selectedWordIds.has(wordId);
+          const groups = word.groups || [];
+          const groupTags = groups.map(group => `<span class="group-item" data-group="${escapeHtml(group)}">${escapeHtml(group)}</span>`).join('');
+          
+          return `
+            <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
+              <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
+              <div class="word-card-content">
+                <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
+                ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
+                ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
+                ${groups.length > 0 ? `<div style="margin: 8px 0; font-size: 11px; color: #999;">Groups: ${groupTags}</div>` : ''}
+                ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
+                <div class="word-date">${formatDate(word.dateAdded)}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Add checkbox event listeners
+        document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+          checkbox.addEventListener('change', (e) => {
+            const wordId = e.target.dataset.wordId;
+            if (e.target.checked) {
+              selectedWordIds.add(wordId);
+              e.target.closest('.word-card').classList.add('selected');
+            } else {
+              selectedWordIds.delete(wordId);
+              e.target.closest('.word-card').classList.remove('selected');
+            }
+            updateSelectionUI();
+          });
+        });
+        
+        // Click on card to toggle selection in selection mode
+        if (selectionMode) {
+          document.querySelectorAll('.word-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+              if (e.target.type !== 'checkbox') {
+                const checkbox = card.querySelector('.word-checkbox');
+                checkbox.click();
+              }
+            });
+          });
+        }
+      }
+      
+      loadGroups(result.groups || {});
+    });
+  };
+  
+  const loadGroups = (groups) => {
+    const groupsSection = document.getElementById('groupsSection');
+    const groupsList = document.getElementById('groupsList');
+    
+    if (!groupsSection || !groupsList) return;
+    
+    const groupNames = Object.keys(groups);
+    if (groupNames.length === 0) {
+      groupsSection.style.display = 'none';
+      return;
+    }
+    
+    groupsSection.style.display = 'block';
+    groupsList.innerHTML = groupNames.map(groupName => {
+      const wordCount = groups[groupName].length;
+      return `<span class="group-item" data-group-name="${escapeHtml(groupName)}">${escapeHtml(groupName)} (${wordCount})</span>`;
+    }).join('');
+    
+    // Add click handlers to filter by group
+    document.querySelectorAll('.group-item[data-group-name]').forEach(item => {
+      item.addEventListener('click', () => {
+        const groupName = item.dataset.groupName;
+        filterByGroup(groupName);
+      });
+    });
+  };
+  
+  const filterByGroup = (groupName) => {
+    const filtered = allWords.filter(word => (word.groups || []).includes(groupName));
+    // Re-render with filtered words
+    if (wordList) {
+      wordList.innerHTML = filtered.map((word, index) => {
+        const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+        const isSelected = selectedWordIds.has(wordId);
+        return `
+          <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
+            <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
+            <div class="word-card-content">
+              <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
+              ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
+              ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
+              ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
+              <div class="word-date">${formatDate(word.dateAdded)}</div>
+            </div>
           </div>
-        `).join('');
+        `;
+      }).join('');
+    }
+  };
+  
+  const toggleSelectionMode = () => {
+    selectionMode = !selectionMode;
+    const vaultTab = document.getElementById('vaultTab');
+    if (!vaultTab) return;
+    
+    if (selectionMode) {
+      vaultTab.classList.add('selection-mode');
+      document.querySelectorAll('.word-checkbox').forEach(cb => {
+        if (cb) cb.style.display = 'block';
+      });
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      if (selectAllBtn) selectAllBtn.textContent = 'Deselect All';
+    } else {
+      vaultTab.classList.remove('selection-mode');
+      selectedWordIds.clear();
+      document.querySelectorAll('.word-checkbox').forEach(cb => {
+        if (cb) {
+          cb.style.display = 'none';
+          cb.checked = false;
+        }
+      });
+      document.querySelectorAll('.word-card').forEach(card => card.classList.remove('selected'));
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      if (selectAllBtn) selectAllBtn.textContent = 'Select All';
+    }
+    updateSelectionUI();
+  };
+  
+  const updateSelectionUI = () => {
+    const selectedCount = document.getElementById('selectedCount');
+    if (selectedCount) {
+      selectedCount.textContent = `${selectedWordIds.size} selected`;
+    }
+  };
+  
+  const selectAll = () => {
+    if (selectedWordIds.size === allWords.length) {
+      // Deselect all
+      selectedWordIds.clear();
+      document.querySelectorAll('.word-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('.word-card').classList.remove('selected');
+      });
+      document.getElementById('selectAllBtn').textContent = 'Select All';
+    } else {
+      // Select all
+      allWords.forEach((word, index) => {
+        const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+        selectedWordIds.add(wordId);
+        const checkbox = document.querySelector(`[data-word-id="${wordId}"]`);
+        if (checkbox) {
+          checkbox.checked = true;
+          checkbox.closest('.word-card').classList.add('selected');
+        }
+      });
+      document.getElementById('selectAllBtn').textContent = 'Deselect All';
+    }
+    updateSelectionUI();
+  };
+  
+  const groupSelected = () => {
+    if (selectedWordIds.size === 0) {
+      alert('Please select at least one word to group');
+      return;
+    }
+    
+    const groupName = prompt('Enter group name:');
+    if (!groupName || !groupName.trim()) return;
+    
+    chrome.storage.local.get(['words', 'groups'], (result) => {
+      const words = result.words || [];
+      const groups = result.groups || {};
+      
+      // Update words with group
+      selectedWordIds.forEach(wordId => {
+        const wordIndex = words.findIndex((w, idx) => {
+          const id = w.id || `${w.word}_${w.dateAdded}_${idx}`;
+          return id === wordId;
+        });
+        if (wordIndex !== -1) {
+          if (!words[wordIndex].groups) words[wordIndex].groups = [];
+          if (!words[wordIndex].groups.includes(groupName)) {
+            words[wordIndex].groups.push(groupName);
+          }
+          // Add ID if missing
+          if (!words[wordIndex].id) {
+            words[wordIndex].id = wordId;
+          }
+        }
+      });
+      
+      // Update groups object
+      if (!groups[groupName]) groups[groupName] = [];
+      selectedWordIds.forEach(wordId => {
+        if (!groups[groupName].includes(wordId)) {
+          groups[groupName].push(wordId);
+        }
+      });
+      
+      chrome.storage.local.set({ words, groups }, () => {
+        selectedWordIds.clear();
+        toggleSelectionMode();
+        loadVault();
+      });
+    });
+  };
+  
+  const deleteSelected = () => {
+    if (selectedWordIds.size === 0) {
+      alert('Please select at least one word to delete');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedWordIds.size} word(s)? This cannot be undone.`)) {
+      return;
+    }
+    
+    chrome.storage.local.get(['words', 'groups'], (result) => {
+      let words = result.words || [];
+      const groups = result.groups || {};
+      
+      // Remove selected words
+      words = words.filter((word, index) => {
+        const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+        if (!word.id) word.id = wordId;
+        return !selectedWordIds.has(wordId);
+      });
+      
+      // Update groups (remove word IDs from groups)
+      Object.keys(groups).forEach(groupName => {
+        groups[groupName] = groups[groupName].filter(id => !selectedWordIds.has(id));
+        if (groups[groupName].length === 0) {
+          delete groups[groupName];
+        }
+      });
+      
+      chrome.storage.local.set({ words, groups }, () => {
+        selectedWordIds.clear();
+        allWords = words;
+        toggleSelectionMode();
+        loadVault();
+      });
+    });
+  };
+  
+  const createGroup = () => {
+    const input = document.getElementById('newGroupInput');
+    if (!input || !input.value.trim()) return;
+    
+    const groupName = input.value.trim();
+    chrome.storage.local.get(['groups'], (result) => {
+      const groups = result.groups || {};
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+        chrome.storage.local.set({ groups }, () => {
+          input.value = '';
+          loadGroups(groups);
+        });
+      } else {
+        alert('Group already exists');
       }
     });
   };
@@ -125,8 +386,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
+  // Event listeners for vault tab
   if (exportBtn) exportBtn.addEventListener('click', exportAsMarkdown);
   if (clearBtn) clearBtn.addEventListener('click', clearAll);
+  
+  const selectAllBtn = document.getElementById('selectAllBtn');
+  const groupBtn = document.getElementById('groupBtn');
+  const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+  const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
+  const createGroupBtn = document.getElementById('createGroupBtn');
+  const newGroupInput = document.getElementById('newGroupInput');
+  
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      if (!selectionMode) {
+        toggleSelectionMode();
+      }
+      selectAll();
+    });
+  }
+  
+  if (groupBtn) groupBtn.addEventListener('click', groupSelected);
+  if (deleteSelectedBtn) deleteSelectedBtn.addEventListener('click', deleteSelected);
+  if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => {
+    selectedWordIds.clear();
+    toggleSelectionMode();
+    loadVault();
+  });
+  
+  if (createGroupBtn) createGroupBtn.addEventListener('click', createGroup);
+  if (newGroupInput) {
+    newGroupInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        createGroup();
+      }
+    });
+  }
   
   // Tab switching
   const tabs = document.querySelectorAll('.tab');
