@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const wordList = document.getElementById('wordList');
   const exportBtn = document.getElementById('exportBtn');
   const clearBtn = document.getElementById('clearBtn');
+  const searchInput = document.getElementById('searchInput');
+  const activeFilter = document.getElementById('activeFilter');
   
   // Helper functions
   const escapeHtml = (text) => {
@@ -28,13 +30,97 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedWordIds = new Set();
   let selectionMode = false;
   let allWords = [];
+  let currentGroupFilter = '';
+  let currentSearchQuery = '';
+
+  const renderWordList = (words) => {
+    if (!wordList) return;
+    wordList.innerHTML = words.map((word, index) => {
+      const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+      const isSelected = selectedWordIds.has(wordId);
+      const groups = word.groups || [];
+      const groupTags = groups.map(group => `<span class="group-item" data-group="${escapeHtml(group)}">${escapeHtml(group)}</span>`).join('');
+
+      return `
+        <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
+          <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
+          <div class="word-card-content">
+            <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
+            ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
+            ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
+            ${groups.length > 0 ? `<div style="margin: 8px 0; font-size: 11px; color: #999;">Groups: ${groupTags}</div>` : ''}
+            ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
+            <div class="word-date">${formatDate(word.dateAdded)}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const wordId = e.target.dataset.wordId;
+        if (e.target.checked) {
+          selectedWordIds.add(wordId);
+          e.target.closest('.word-card').classList.add('selected');
+        } else {
+          selectedWordIds.delete(wordId);
+          e.target.closest('.word-card').classList.remove('selected');
+        }
+        updateSelectionUI();
+      });
+    });
+
+    if (selectionMode) {
+      document.querySelectorAll('.word-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.type !== 'checkbox') {
+            const checkbox = card.querySelector('.word-checkbox');
+            checkbox.click();
+          }
+        });
+      });
+    }
+  };
+
+  const updateActiveFilterLabel = () => {
+    if (!activeFilter) return;
+    const labels = [];
+    if (currentGroupFilter) labels.push(`Group: ${currentGroupFilter}`);
+    if (currentSearchQuery) labels.push(`Search: "${currentSearchQuery}"`);
+    if (labels.length === 0) {
+      activeFilter.style.display = 'none';
+      activeFilter.textContent = '';
+      return;
+    }
+    activeFilter.style.display = 'inline-block';
+    activeFilter.textContent = labels.join(' | ');
+  };
+
+  const applyVaultFilters = () => {
+    let visible = [...allWords];
+    if (currentGroupFilter) {
+      visible = visible.filter(word => (word.groups || []).includes(currentGroupFilter));
+    }
+    if (currentSearchQuery) {
+      const query = currentSearchQuery.toLowerCase();
+      visible = visible.filter(word =>
+        (word.word || '').toLowerCase().includes(query) ||
+        (word.meaning || '').toLowerCase().includes(query) ||
+        (word.mnemonic || '').toLowerCase().includes(query) ||
+        (word.context || '').toLowerCase().includes(query)
+      );
+    }
+    if (stats) stats.textContent = `Total words: ${allWords.length} • Showing: ${visible.length}`;
+    updateActiveFilterLabel();
+    renderWordList(visible);
+  };
   
   // Vault Tab Functions
   const loadVault = () => {
     chrome.storage.local.get(['words', 'groups'], (result) => {
       const words = result.words || [];
       allWords = words;
-      
+      words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
       if (stats) stats.textContent = `Total words: ${words.length}`;
       
       if (words.length === 0) {
@@ -51,57 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-      
-      if (wordList) {
-        wordList.innerHTML = words.map((word, index) => {
-          const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
-          const isSelected = selectedWordIds.has(wordId);
-          const groups = word.groups || [];
-          const groupTags = groups.map(group => `<span class="group-item" data-group="${escapeHtml(group)}">${escapeHtml(group)}</span>`).join('');
-          
-          return `
-            <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
-              <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
-              <div class="word-card-content">
-                <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
-                ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
-                ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
-                ${groups.length > 0 ? `<div style="margin: 8px 0; font-size: 11px; color: #999;">Groups: ${groupTags}</div>` : ''}
-                ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
-                <div class="word-date">${formatDate(word.dateAdded)}</div>
-              </div>
-            </div>
-          `;
-        }).join('');
-        
-        // Add checkbox event listeners
-        document.querySelectorAll('.word-checkbox').forEach(checkbox => {
-          checkbox.addEventListener('change', (e) => {
-            const wordId = e.target.dataset.wordId;
-            if (e.target.checked) {
-              selectedWordIds.add(wordId);
-              e.target.closest('.word-card').classList.add('selected');
-            } else {
-              selectedWordIds.delete(wordId);
-              e.target.closest('.word-card').classList.remove('selected');
-            }
-            updateSelectionUI();
-          });
-        });
-        
-        // Click on card to toggle selection in selection mode
-        if (selectionMode) {
-          document.querySelectorAll('.word-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-              if (e.target.type !== 'checkbox') {
-                const checkbox = card.querySelector('.word-checkbox');
-                checkbox.click();
-              }
-            });
-          });
-        }
-      }
+      applyVaultFilters();
       
       loadGroups(result.groups || {});
     });
@@ -135,26 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   const filterByGroup = (groupName) => {
-    const filtered = allWords.filter(word => (word.groups || []).includes(groupName));
-    // Re-render with filtered words
-    if (wordList) {
-      wordList.innerHTML = filtered.map((word, index) => {
-        const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
-        const isSelected = selectedWordIds.has(wordId);
-        return `
-          <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
-            <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
-            <div class="word-card-content">
-              <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
-              ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
-              ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
-              ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
-              <div class="word-date">${formatDate(word.dateAdded)}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
+    currentGroupFilter = currentGroupFilter === groupName ? '' : groupName;
+    applyVaultFilters();
   };
   
   const toggleSelectionMode = () => {
@@ -421,6 +439,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         createGroup();
       }
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      currentSearchQuery = (e.target.value || '').trim();
+      applyVaultFilters();
     });
   }
   

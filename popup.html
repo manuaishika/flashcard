@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Vault</title>
   <style>
     * {
       margin: 0;
@@ -118,6 +120,7 @@
       display: flex;
       align-items: center;
       cursor: pointer;
+      -webkit-user-select: none;
       user-select: none;
       margin-bottom: 8px;
     }
@@ -275,6 +278,40 @@
       margin-bottom: 16px;
       font-size: 13px;
       color: #666;
+      border: 1px solid #ececec;
+    }
+
+    .vault-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #4A90E2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.12);
+    }
+
+    .active-filter {
+      display: none;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #4A90E2;
+      background: #edf4ff;
+      border: 1px solid #cfe2ff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      width: fit-content;
     }
     
     .word-list {
@@ -285,16 +322,16 @@
     
     .word-card {
       padding: 16px;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      background: #fafafa;
+      border: 1px solid #e7eaf0;
+      border-radius: 10px;
+      background: #fff;
       position: relative;
       transition: all 0.2s;
     }
     
     .word-card:hover {
       border-color: #4A90E2;
-      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.1);
+      box-shadow: 0 8px 18px rgba(74, 144, 226, 0.1);
     }
     
     .word-card.selected {
@@ -425,7 +462,7 @@
     
     .word-meaning {
       font-size: 13px;
-      color: #999;
+      color: #8f95a0;
       margin-bottom: 10px;
       font-style: italic;
     }
@@ -436,7 +473,7 @@
       line-height: 1.6;
       margin-bottom: 10px;
       padding: 10px;
-      background: white;
+      background: #f6f9ff;
       border-left: 3px solid #4A90E2;
       border-radius: 4px;
     }
@@ -546,6 +583,10 @@
     </div>
     
     <div class="stats" id="stats">Loading...</div>
+    <div class="vault-toolbar">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search words, context, or understanding...">
+    </div>
+    <div class="active-filter" id="activeFilter"></div>
     <div class="word-list" id="wordList">Loading...</div>
   </div>
   

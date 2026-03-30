@@ -74,18 +74,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'openSavePopup') {
-    const word = (request.word || '').trim();
-    if (!word) {
-      sendResponse({ success: false, error: 'No word provided' });
-      return true;
-    }
-    const senderUrl = sender && sender.tab ? sender.tab.url : '';
-    openWordPopup(word, senderUrl);
-    sendResponse({ success: true });
-    return true;
-  }
-
   if (request.action === 'saveWord') {
     // Save word to storage
     chrome.storage.local.get(['words'], (result) => {
