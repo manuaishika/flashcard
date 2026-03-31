@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Vault",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A personal semantic memory system for capturing words you encounter while reading. Right-click any word to save with your understanding.",
   "permissions": [
     "storage",
@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["vault-content.js"]
     }
   ],
   "action": {

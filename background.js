@@ -1,5 +1,23 @@
 // Service worker - handles keyboard shortcuts and context menu
 
+// Strip leftover UI from an older build whose content script stayed alive in open tabs.
+function removeGhostSaveChipsFromOpenTabs() {
+  const stripChip = () => {
+    document.querySelectorAll('button').forEach((el) => {
+      const t = (el.textContent || '').trim();
+      if (t === 'Save to Vault') el.remove();
+    });
+  };
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (!tab.id) continue;
+      chrome.scripting
+        .executeScript({ target: { tabId: tab.id }, func: stripChip })
+        .catch(() => {});
+    }
+  });
+}
+
 function openWordPopup(word, url) {
   if (!word) return;
 
@@ -58,8 +76,11 @@ const createContextMenu = () => {
 createContextMenu();
 
 // Also create on install and startup (in case extension reloaded)
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   createContextMenu();
+  if (details.reason === 'install' || details.reason === 'update') {
+    removeGhostSaveChipsFromOpenTabs();
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
