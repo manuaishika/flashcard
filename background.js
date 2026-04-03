@@ -3,14 +3,17 @@
 // Strip leftover UI from an older build whose content script stayed alive in open tabs.
 function removeGhostSaveChipsFromOpenTabs() {
   const stripChip = () => {
-    document.querySelectorAll('button').forEach((el) => {
-      const t = (el.textContent || '').trim();
-      if (t === 'Save to Vault') el.remove();
+    const candidates = document.querySelectorAll('button, [role="button"], a, span, div');
+    candidates.forEach((el) => {
+      const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t.includes('Save to Vault')) el.remove();
     });
   };
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (!tab.id) continue;
+      const url = tab.url || '';
+      if (!url.startsWith('http://') && !url.startsWith('https://')) continue;
       chrome.scripting
         .executeScript({ target: { tabId: tab.id }, func: stripChip })
         .catch(() => {});
@@ -37,18 +40,17 @@ chrome.commands.onCommand.addListener((command) => {
     // Get active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
-        // Inject script to get selected text
-        chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          func: () => {
-            return window.getSelection().toString().trim();
-          }
-        }, (results) => {
-          const word = results && results[0]?.result;
-          if (word) {
-            openWordPopup(word, tabs[0].url);
-          }
-        });
+        // Inject script to get selected text (MV3 executeScript is promise-based)
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => window.getSelection().toString().trim()
+          })
+          .then((results) => {
+            const word = results && results[0]?.result;
+            if (word) openWordPopup(word, tabs[0].url);
+          })
+          .catch(() => {});
       }
     });
   }
@@ -64,7 +66,7 @@ const createContextMenu = () => {
       contexts: ['selection']
     }, () => {
       if (chrome.runtime.lastError) {
-        console.error('Context menu creation error:', chrome.runtime.lastError);
+        console.error('Context menu creation error:', chrome.runtime.lastError.message);
       } else {
         console.log('Context menu created successfully');
       }
@@ -85,6 +87,9 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   createContextMenu();
+  // Best-effort cleanup if a previous content script instance lingered.
+  // (If it isn't ours, this is harmless; it only removes elements containing the text.)
+  removeGhostSaveChipsFromOpenTabs();
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -96,22 +101,40 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'saveWord') {
-    // Save word to storage
-    chrome.storage.local.get(['words'], (result) => {
+    chrome.storage.local.get(['words', 'groups'], (result) => {
       const words = result.words || [];
+      const groups = result.groups || {};
+      const wordId = globalThis.crypto?.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : `wv_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+
+      const payloadGroups = Array.isArray(request.groups) ? request.groups.filter(Boolean) : [];
+      const suggestedGroup =
+        typeof request.suggestedGroup === 'string' && request.suggestedGroup.trim()
+          ? request.suggestedGroup.trim()
+          : null;
+
       const wordCard = {
+        id: wordId,
         word: request.word,
         meaning: request.meaning || '',
         mnemonic: request.mnemonic || '',
         context: request.context || '',
         sourceUrl: request.sourceUrl || '',
-        dateAdded: new Date().toISOString()
+        dateAdded: new Date().toISOString(),
+        groups: payloadGroups,
+        suggestedGroup
       };
-      
+
       words.push(wordCard);
-      
-      chrome.storage.local.set({ words: words }, () => {
-        sendResponse({ success: true });
+
+      payloadGroups.forEach((name) => {
+        if (!groups[name]) groups[name] = [];
+        if (!groups[name].includes(wordId)) groups[name].push(wordId);
+      });
+
+      chrome.storage.local.set({ words, groups }, () => {
+        sendResponse({ success: true, id: wordId });
       });
     });
     return true;

@@ -1,62 +1,188 @@
-// Popup script - handles tabs (Save/Vault) and word entry
+// Popup — Save / Vault with suggested grouping
+
+const GROUP_RULES = [
+  {
+    name: 'Technology',
+    keys: [
+      'software', 'algorithm', 'computer', 'digital', 'data', 'network', 'code', 'program', 'api',
+      'server', 'internet', 'cyber', 'artificial', 'hardware', 'database', 'encryption', 'pixel'
+    ]
+  },
+  {
+    name: 'Business & economics',
+    keys: [
+      'market', 'finance', 'invest', 'revenue', 'profit', 'stock', 'trade', 'econom', 'business',
+      'company', 'startup', 'contract', 'customer', 'sales', 'capital', 'tariff', 'inflation'
+    ]
+  },
+  {
+    name: 'Law & politics',
+    keys: [
+      'law', 'legal', 'court', 'policy', 'democracy', 'government', 'parliament', 'vote',
+      'rights', 'treaty', 'constitution', 'regulation', 'justice', 'sovereign', 'sanction'
+    ]
+  },
+  {
+    name: 'Medicine & body',
+    keys: [
+      'medicine', 'medical', 'disease', 'symptom', 'therapy', 'surgery', 'anatom', 'diagnos',
+      'clinical', 'patient', 'vaccine', 'tissue', 'muscle', 'bone', 'virus', 'bacteria', 'cell'
+    ]
+  },
+  {
+    name: 'Science & nature',
+    keys: [
+      'species', 'evolution', 'climate', 'ecosystem', 'chemistry', 'physics', 'atom', 'molecule',
+      'energy', 'gravity', 'mineral', 'fossil', 'ossif', 'geology', 'astronom', 'genome'
+    ]
+  },
+  {
+    name: 'Mind & philosophy',
+    keys: [
+      'psycholog', 'emotion', 'cognit', 'memory', 'philosoph', 'ethic', 'moral', 'logic',
+      'epistemo', 'existen', 'conscious', 'belief', 'reason', 'metaph', 'ontolog'
+    ]
+  },
+  {
+    name: 'Arts & culture',
+    keys: [
+      'art', 'music', 'poetry', 'literature', 'novel', 'drama', 'film', 'culture', 'myth',
+      'ritual', 'religion', 'aesthetic', 'metaphor', 'symbol'
+    ]
+  },
+  {
+    name: 'Academic & learning',
+    keys: [
+      'theory', 'hypothesis', 'research', 'study', 'analysis', 'discourse', 'scholar', 'thesis',
+      'methodology', 'citation', 'paradigm', 'empirical'
+    ]
+  },
+  {
+    name: 'Everyday life',
+    keys: [
+      'food', 'travel', 'family', 'home', 'friend', 'sport', 'game', 'weather', 'fashion',
+      'cooking', 'garden', 'hobby'
+    ]
+  }
+];
+
+function suggestGroupFromContent({ word, meaning, context, mnemonic }) {
+  const blob = [word, meaning, context, mnemonic].filter(Boolean).join(' ').toLowerCase();
+  if (!blob.trim()) return 'General vocabulary';
+
+  for (const rule of GROUP_RULES) {
+    if (rule.keys.some((k) => blob.includes(k))) return rule.name;
+  }
+  return 'General vocabulary';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Vault Tab Elements (defined first so functions can access them)
   const stats = document.getElementById('stats');
   const wordList = document.getElementById('wordList');
   const exportBtn = document.getElementById('exportBtn');
   const clearBtn = document.getElementById('clearBtn');
   const searchInput = document.getElementById('searchInput');
   const activeFilter = document.getElementById('activeFilter');
-  
-  // Helper functions
+  const groupsSection = document.getElementById('groupsSection');
+
   const escapeHtml = (text) => {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown date';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
-  
-  // Selection state
+
   let selectedWordIds = new Set();
   let selectionMode = false;
   let allWords = [];
   let currentGroupFilter = '';
   let currentSearchQuery = '';
 
+  let groupsForSave = [];
+  let pendingSuggestion = '';
+  let currentMeaningGlobal = '';
+
+  const suggestedStrip = document.getElementById('suggestedStrip');
+  const suggestedGroupPill = document.getElementById('suggestedGroupPill');
+  const useSuggestedBtn = document.getElementById('useSuggestedBtn');
+  const customGroupBtn = document.getElementById('customGroupBtn');
+  const clearGroupChoiceBtn = document.getElementById('clearGroupChoiceBtn');
+
+  const refreshSaveSuggestion = () => {
+    const word = (document.getElementById('wordInput')?.value || '').trim();
+    const meaning = currentMeaningGlobal;
+    const context = (document.getElementById('contextInput')?.value || '').trim();
+    const mnemonic = (document.getElementById('mnemonicInput')?.value || '').trim();
+
+    if (!suggestedStrip || !suggestedGroupPill) return;
+
+    if (!word && !meaning && !context && !mnemonic) {
+      pendingSuggestion = '';
+      suggestedStrip.classList.remove('visible');
+      return;
+    }
+
+    pendingSuggestion = suggestGroupFromContent({ word, meaning, context, mnemonic });
+    suggestedGroupPill.textContent = pendingSuggestion;
+    suggestedStrip.classList.add('visible');
+  };
+
   const renderWordList = (words) => {
     if (!wordList) return;
-    wordList.innerHTML = words.map((word, index) => {
-      const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
-      const isSelected = selectedWordIds.has(wordId);
-      const groups = word.groups || [];
-      const groupTags = groups.map(group => `<span class="group-item" data-group="${escapeHtml(group)}">${escapeHtml(group)}</span>`).join('');
+    wordList.innerHTML = words
+      .map((word, index) => {
+        const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
+        const isSelected = selectedWordIds.has(wordId);
+        const groups = word.groups || [];
 
-      return `
+        const userTags = groups
+          .map(
+            (g) =>
+              `<span class="tag user-group" data-group="${escapeHtml(g)}">${escapeHtml(g)}</span>`
+          )
+          .join('');
+
+        let suggestedRow = '';
+        if (
+          word.suggestedGroup &&
+          !(word.groups || []).includes(word.suggestedGroup)
+        ) {
+          suggestedRow = `
+          <div class="suggested-hint">
+            Suggested: ${escapeHtml(word.suggestedGroup)}
+            <button type="button" class="link-add" data-accept-suggestion="${escapeHtml(wordId)}">Add to card</button>
+          </div>`;
+        }
+
+        return `
         <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
           <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
           <div class="word-card-content">
             <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
             ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
             ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
-            ${groups.length > 0 ? `<div style="margin: 8px 0; font-size: 11px; color: #999;">Groups: ${groupTags}</div>` : ''}
-            ${word.context ? `<div class="word-context">📍 ${escapeHtml(word.context)}</div>` : ''}
-            <div class="word-date">${formatDate(word.dateAdded)}</div>
+            ${word.context ? `<div class="word-context">${escapeHtml(word.context)}</div>` : ''}
+            <div class="word-meta">
+              ${userTags}
+              <span class="word-date">${formatDate(word.dateAdded)}</span>
+            </div>
+            ${suggestedRow}
           </div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
-    document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+    document.querySelectorAll('.word-checkbox').forEach((checkbox) => {
       checkbox.addEventListener('change', (e) => {
         const wordId = e.target.dataset.wordId;
         if (e.target.checked) {
@@ -71,9 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (selectionMode) {
-      document.querySelectorAll('.word-card').forEach(card => {
+      document.querySelectorAll('.word-card').forEach((card) => {
         card.addEventListener('click', (e) => {
-          if (e.target.type !== 'checkbox') {
+          if (e.target.type !== 'checkbox' && !e.target.closest('[data-accept-suggestion]')) {
             const checkbox = card.querySelector('.word-checkbox');
             checkbox.click();
           }
@@ -84,172 +210,215 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const updateActiveFilterLabel = () => {
     if (!activeFilter) return;
-    const labels = [];
-    if (currentGroupFilter) labels.push(`Group: ${currentGroupFilter}`);
-    if (currentSearchQuery) labels.push(`Search: "${currentSearchQuery}"`);
-    if (labels.length === 0) {
-      activeFilter.style.display = 'none';
+    const parts = [];
+    if (currentGroupFilter) parts.push(`Group: ${currentGroupFilter}`);
+    if (currentSearchQuery) parts.push(`Search: “${currentSearchQuery}”`);
+    if (parts.length === 0) {
+      activeFilter.classList.remove('visible');
       activeFilter.textContent = '';
       return;
     }
-    activeFilter.style.display = 'inline-block';
-    activeFilter.textContent = labels.join(' | ');
+    activeFilter.classList.add('visible');
+    activeFilter.textContent = parts.join(' · ');
   };
 
   const applyVaultFilters = () => {
     let visible = [...allWords];
     if (currentGroupFilter) {
-      visible = visible.filter(word => (word.groups || []).includes(currentGroupFilter));
+      visible = visible.filter((word) => (word.groups || []).includes(currentGroupFilter));
     }
     if (currentSearchQuery) {
       const query = currentSearchQuery.toLowerCase();
-      visible = visible.filter(word =>
-        (word.word || '').toLowerCase().includes(query) ||
-        (word.meaning || '').toLowerCase().includes(query) ||
-        (word.mnemonic || '').toLowerCase().includes(query) ||
-        (word.context || '').toLowerCase().includes(query)
+      visible = visible.filter(
+        (word) =>
+          (word.word || '').toLowerCase().includes(query) ||
+          (word.meaning || '').toLowerCase().includes(query) ||
+          (word.mnemonic || '').toLowerCase().includes(query) ||
+          (word.context || '').toLowerCase().includes(query) ||
+          (word.suggestedGroup || '').toLowerCase().includes(query)
       );
     }
-    if (stats) stats.textContent = `Total words: ${allWords.length} • Showing: ${visible.length}`;
+    if (stats) {
+      stats.textContent = `Total ${allWords.length} · Showing ${visible.length}`;
+    }
     updateActiveFilterLabel();
+    loadGroupsMarkActive();
     renderWordList(visible);
   };
-  
-  // Vault Tab Functions
+
   const loadVault = () => {
     chrome.storage.local.get(['words', 'groups'], (result) => {
       const words = result.words || [];
       allWords = words;
       words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-      if (stats) stats.textContent = `Total words: ${words.length}`;
-      
+      if (stats) stats.textContent = `Total ${words.length} · Showing ${words.length}`;
+
       if (words.length === 0) {
         if (wordList) {
           wordList.innerHTML = `
             <div class="empty-state">
               <div class="empty-icon">📚</div>
-              <div style="margin-bottom: 8px;">Your Word Vault is empty</div>
-              <div style="font-size: 12px; color: #999;">Right-click on words while reading to add them</div>
+              <div class="empty-title">Nothing saved yet</div>
+              <div class="empty-sub">Select text on a page → right-click → Save to Word Vault</div>
             </div>
           `;
         }
-        loadGroups(result.groups || {});
+        if (groupsSection) groupsSection.classList.remove('visible');
         return;
       }
-      
-      applyVaultFilters();
-      
+
       loadGroups(result.groups || {});
+      applyVaultFilters();
     });
   };
-  
+
+  const loadGroupsMarkActive = () => {
+    document.querySelectorAll('.group-pill[data-group-name]').forEach((el) => {
+      if (el.dataset.groupName === currentGroupFilter) el.classList.add('active-filter');
+      else el.classList.remove('active-filter');
+    });
+  };
+
   const loadGroups = (groups) => {
-    const groupsSection = document.getElementById('groupsSection');
     const groupsList = document.getElementById('groupsList');
-    
     if (!groupsSection || !groupsList) return;
-    
+
     const groupNames = Object.keys(groups);
     if (groupNames.length === 0) {
-      groupsSection.style.display = 'none';
+      groupsSection.classList.remove('visible');
       return;
     }
-    
-    groupsSection.style.display = 'block';
-    groupsList.innerHTML = groupNames.map(groupName => {
-      const wordCount = groups[groupName].length;
-      return `<span class="group-item" data-group-name="${escapeHtml(groupName)}">${escapeHtml(groupName)} (${wordCount})</span>`;
-    }).join('');
-    
-    // Add click handlers to filter by group
-    document.querySelectorAll('.group-item[data-group-name]').forEach(item => {
+
+    groupsSection.classList.add('visible');
+    groupsList.innerHTML = groupNames
+      .map((groupName) => {
+        const wordCount = groups[groupName].length;
+        return `<button type="button" class="group-pill" data-group-name="${escapeHtml(groupName)}">${escapeHtml(groupName)} <span style="opacity:0.65">(${wordCount})</span></button>`;
+      })
+      .join('');
+
+    document.querySelectorAll('.group-pill[data-group-name]').forEach((item) => {
       item.addEventListener('click', () => {
-        const groupName = item.dataset.groupName;
-        filterByGroup(groupName);
+        filterByGroup(item.dataset.groupName);
       });
     });
+    loadGroupsMarkActive();
   };
-  
+
   const filterByGroup = (groupName) => {
     currentGroupFilter = currentGroupFilter === groupName ? '' : groupName;
     applyVaultFilters();
   };
-  
+
+  const acceptSuggestedForWord = (wordId) => {
+    chrome.storage.local.get(['words', 'groups'], (result) => {
+      const words = result.words || [];
+      const groups = result.groups || {};
+      let changed = false;
+
+      words.forEach((w, idx) => {
+        const id = w.id || `${w.word}_${w.dateAdded}_${idx}`;
+        if (id !== wordId || !w.suggestedGroup) return;
+        if ((w.groups || []).includes(w.suggestedGroup)) return;
+        if (!w.groups) w.groups = [];
+        w.groups.push(w.suggestedGroup);
+        const g = w.suggestedGroup;
+        if (!groups[g]) groups[g] = [];
+        if (w.id && !groups[g].includes(w.id)) groups[g].push(w.id);
+        else if (!w.id) {
+          w.id = wordId;
+          if (!groups[g].includes(wordId)) groups[g].push(wordId);
+        }
+        changed = true;
+      });
+
+      if (changed) {
+        chrome.storage.local.set({ words, groups }, () => loadVault());
+      }
+    });
+  };
+
+  if (wordList) {
+    wordList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-accept-suggestion]');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      acceptSuggestedForWord(btn.getAttribute('data-accept-suggestion'));
+    });
+  }
+
   const toggleSelectionMode = () => {
     selectionMode = !selectionMode;
     const vaultTab = document.getElementById('vaultTab');
     if (!vaultTab) return;
-    
+
     if (selectionMode) {
       vaultTab.classList.add('selection-mode');
-      document.querySelectorAll('.word-checkbox').forEach(cb => {
+      document.querySelectorAll('.word-checkbox').forEach((cb) => {
         if (cb) cb.style.display = 'block';
       });
       const selectAllBtn = document.getElementById('selectAllBtn');
-      if (selectAllBtn) selectAllBtn.textContent = 'Deselect All';
+      if (selectAllBtn) selectAllBtn.textContent = 'Done';
     } else {
       vaultTab.classList.remove('selection-mode');
       selectedWordIds.clear();
-      document.querySelectorAll('.word-checkbox').forEach(cb => {
+      document.querySelectorAll('.word-checkbox').forEach((cb) => {
         if (cb) {
           cb.style.display = 'none';
           cb.checked = false;
         }
       });
-      document.querySelectorAll('.word-card').forEach(card => card.classList.remove('selected'));
+      document.querySelectorAll('.word-card').forEach((card) => card.classList.remove('selected'));
       const selectAllBtn = document.getElementById('selectAllBtn');
-      if (selectAllBtn) selectAllBtn.textContent = 'Select All';
+      if (selectAllBtn) selectAllBtn.textContent = 'Select';
     }
     updateSelectionUI();
+    applyVaultFilters();
   };
-  
+
   const updateSelectionUI = () => {
     const selectedCount = document.getElementById('selectedCount');
-    if (selectedCount) {
-      selectedCount.textContent = `${selectedWordIds.size} selected`;
-    }
+    if (selectedCount) selectedCount.textContent = `${selectedWordIds.size} selected`;
   };
-  
+
   const selectAll = () => {
     if (selectedWordIds.size === allWords.length) {
-      // Deselect all
       selectedWordIds.clear();
-      document.querySelectorAll('.word-checkbox').forEach(cb => {
+      document.querySelectorAll('.word-checkbox').forEach((cb) => {
         cb.checked = false;
         cb.closest('.word-card').classList.remove('selected');
       });
-      document.getElementById('selectAllBtn').textContent = 'Select All';
     } else {
-      // Select all
       allWords.forEach((word, index) => {
         const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
         selectedWordIds.add(wordId);
-        const checkbox = document.querySelector(`[data-word-id="${wordId}"]`);
+        const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(wordId) : wordId.replace(/"/g, '\\"');
+        const row = document.querySelector(`.word-card[data-word-id="${esc}"]`);
+        const checkbox = row && row.querySelector('.word-checkbox');
         if (checkbox) {
           checkbox.checked = true;
-          checkbox.closest('.word-card').classList.add('selected');
+          row.classList.add('selected');
         }
       });
-      document.getElementById('selectAllBtn').textContent = 'Deselect All';
     }
     updateSelectionUI();
   };
-  
+
   const groupSelected = () => {
     if (selectedWordIds.size === 0) {
-      alert('Please select at least one word to group');
+      alert('Select at least one card to group.');
       return;
     }
-    
-    const groupName = prompt('Enter group name:');
+
+    const groupName = prompt('Group name:');
     if (!groupName || !groupName.trim()) return;
-    
+
     chrome.storage.local.get(['words', 'groups'], (result) => {
       const words = result.words || [];
       const groups = result.groups || {};
-      
-      // Update words with group
-      selectedWordIds.forEach(wordId => {
+
+      selectedWordIds.forEach((wordId) => {
         const wordIndex = words.findIndex((w, idx) => {
           const id = w.id || `${w.word}_${w.dateAdded}_${idx}`;
           return id === wordId;
@@ -259,21 +428,15 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!words[wordIndex].groups.includes(groupName)) {
             words[wordIndex].groups.push(groupName);
           }
-          // Add ID if missing
-          if (!words[wordIndex].id) {
-            words[wordIndex].id = wordId;
-          }
+          if (!words[wordIndex].id) words[wordIndex].id = wordId;
         }
       });
-      
-      // Update groups object
+
       if (!groups[groupName]) groups[groupName] = [];
-      selectedWordIds.forEach(wordId => {
-        if (!groups[groupName].includes(wordId)) {
-          groups[groupName].push(wordId);
-        }
+      selectedWordIds.forEach((wordId) => {
+        if (!groups[groupName].includes(wordId)) groups[groupName].push(wordId);
       });
-      
+
       chrome.storage.local.set({ words, groups }, () => {
         selectedWordIds.clear();
         toggleSelectionMode();
@@ -281,36 +444,30 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   };
-  
+
   const deleteSelected = () => {
     if (selectedWordIds.size === 0) {
-      alert('Please select at least one word to delete');
+      alert('Select at least one card to delete.');
       return;
     }
-    
-    if (!confirm(`Are you sure you want to delete ${selectedWordIds.size} word(s)? This cannot be undone.`)) {
-      return;
-    }
-    
+
+    if (!confirm(`Delete ${selectedWordIds.size} card(s)? This cannot be undone.`)) return;
+
     chrome.storage.local.get(['words', 'groups'], (result) => {
       let words = result.words || [];
       const groups = result.groups || {};
-      
-      // Remove selected words
+
       words = words.filter((word, index) => {
         const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
         if (!word.id) word.id = wordId;
         return !selectedWordIds.has(wordId);
       });
-      
-      // Update groups (remove word IDs from groups)
-      Object.keys(groups).forEach(groupName => {
-        groups[groupName] = groups[groupName].filter(id => !selectedWordIds.has(id));
-        if (groups[groupName].length === 0) {
-          delete groups[groupName];
-        }
+
+      Object.keys(groups).forEach((groupName) => {
+        groups[groupName] = groups[groupName].filter((id) => !selectedWordIds.has(id));
+        if (groups[groupName].length === 0) delete groups[groupName];
       });
-      
+
       chrome.storage.local.set({ words, groups }, () => {
         selectedWordIds.clear();
         allWords = words;
@@ -319,11 +476,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   };
-  
+
   const createGroup = () => {
     const input = document.getElementById('newGroupInput');
     if (!input || !input.value.trim()) return;
-    
+
     const groupName = input.value.trim();
     chrome.storage.local.get(['groups'], (result) => {
       const groups = result.groups || {};
@@ -331,62 +488,61 @@ document.addEventListener('DOMContentLoaded', () => {
         groups[groupName] = [];
         chrome.storage.local.set({ groups }, () => {
           input.value = '';
-          loadGroups(groups);
+          loadVault();
         });
       } else {
-        alert('Group already exists');
+        alert('That group already exists.');
       }
     });
   };
-  
+
   const exportAsMarkdown = () => {
     chrome.storage.local.get(['words'], (result) => {
       const words = result.words || [];
-      
+
       if (words.length === 0) {
-        alert('No words to export');
+        alert('Nothing to export yet.');
         return;
       }
-      
+
       words.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-      
-      const markdown = words.map(word => {
-        const lines = [
-          `## ${word.word || 'Untitled'}`,
-          '',
-          `**Date:** ${formatDate(word.dateAdded)}`,
-          ''
-        ];
-        
-        if (word.meaning) {
-          lines.push(`*Auto explanation:* ${word.meaning}`);
-          lines.push('');
-        }
-        
-        if (word.mnemonic) {
-          lines.push(`**My understanding:** ${word.mnemonic}`);
-          lines.push('');
-        }
-        
-        if (word.context) {
-          lines.push(`*Context:* ${word.context}`);
-          lines.push('');
-        }
-        
-        if (word.sourceUrl) {
-          lines.push(`[Source](${word.sourceUrl})`);
-          lines.push('');
-        }
-        
-        lines.push('---');
-        lines.push('');
-        return lines.join('\n');
-      }).join('\n');
-      
-      const header = `# Word Vault\n\n*Exported on ${formatDate(new Date().toISOString())}*\n\nTotal words: ${words.length}\n\n---\n\n`;
-      const fullMarkdown = header + markdown;
-      
-      const blob = new Blob([fullMarkdown], { type: 'text/markdown' });
+
+      const markdown = words
+        .map((word) => {
+          const lines = [`## ${word.word || 'Untitled'}`, '', `**Date:** ${formatDate(word.dateAdded)}`, ''];
+
+          if (word.groups && word.groups.length) {
+            lines.push(`**Groups:** ${word.groups.join(', ')}`);
+            lines.push('');
+          }
+          if (word.suggestedGroup && !(word.groups || []).includes(word.suggestedGroup)) {
+            lines.push(`*Suggested group:* ${word.suggestedGroup}`);
+            lines.push('');
+          }
+          if (word.meaning) {
+            lines.push(`*Definition:* ${word.meaning}`);
+            lines.push('');
+          }
+          if (word.mnemonic) {
+            lines.push(`**My understanding:** ${word.mnemonic}`);
+            lines.push('');
+          }
+          if (word.context) {
+            lines.push(`*Context:* ${word.context}`);
+            lines.push('');
+          }
+          if (word.sourceUrl) {
+            lines.push(`[Source](${word.sourceUrl})`);
+            lines.push('');
+          }
+
+          lines.push('---', '');
+          return lines.join('\n');
+        })
+        .join('\n');
+
+      const header = `# Word Vault\n\nExported ${formatDate(new Date().toISOString())}\n\n---\n\n`;
+      const blob = new Blob([header + markdown], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -395,43 +551,39 @@ document.addEventListener('DOMContentLoaded', () => {
       URL.revokeObjectURL(url);
     });
   };
-  
+
   const clearAll = () => {
-    if (confirm('Are you sure you want to clear all words? This cannot be undone.')) {
-      chrome.storage.local.set({ words: [] }, () => {
-        loadVault();
-      });
+    if (confirm('Clear every saved word? This cannot be undone.')) {
+      chrome.storage.local.set({ words: [], groups: {} }, () => loadVault());
     }
   };
-  
-  // Event listeners for vault tab
+
   if (exportBtn) exportBtn.addEventListener('click', exportAsMarkdown);
   if (clearBtn) clearBtn.addEventListener('click', clearAll);
-  
+
   const selectAllBtn = document.getElementById('selectAllBtn');
   const groupBtn = document.getElementById('groupBtn');
   const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
   const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
   const createGroupBtn = document.getElementById('createGroupBtn');
   const newGroupInput = document.getElementById('newGroupInput');
-  
+
   if (selectAllBtn) {
     selectAllBtn.addEventListener('click', () => {
-      if (!selectionMode) {
-        toggleSelectionMode();
-      }
+      if (!selectionMode) toggleSelectionMode();
       selectAll();
     });
   }
-  
+
   if (groupBtn) groupBtn.addEventListener('click', groupSelected);
   if (deleteSelectedBtn) deleteSelectedBtn.addEventListener('click', deleteSelected);
-  if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => {
-    selectedWordIds.clear();
-    toggleSelectionMode();
-    loadVault();
-  });
-  
+  if (cancelSelectionBtn)
+    cancelSelectionBtn.addEventListener('click', () => {
+      selectedWordIds.clear();
+      toggleSelectionMode();
+      loadVault();
+    });
+
   if (createGroupBtn) createGroupBtn.addEventListener('click', createGroup);
   if (newGroupInput) {
     newGroupInput.addEventListener('keydown', (e) => {
@@ -448,35 +600,41 @@ document.addEventListener('DOMContentLoaded', () => {
       applyVaultFilters();
     });
   }
-  
-  // Tab switching
+
+  if (useSuggestedBtn) {
+    useSuggestedBtn.addEventListener('click', () => {
+      if (pendingSuggestion) groupsForSave = [pendingSuggestion];
+    });
+  }
+  if (clearGroupChoiceBtn) {
+    clearGroupChoiceBtn.addEventListener('click', () => {
+      groupsForSave = [];
+    });
+  }
+  if (customGroupBtn) {
+    customGroupBtn.addEventListener('click', () => {
+      const name = prompt('Custom group name:');
+      if (!name || !name.trim()) return;
+      groupsForSave = [name.trim()];
+    });
+  }
+
   const tabs = document.querySelectorAll('.tab');
   const tabContents = document.querySelectorAll('.tab-content');
-  
-  tabs.forEach(tab => {
+
+  tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       const targetTab = tab.dataset.tab;
-      
-      // Update tab states
-      tabs.forEach(t => t.classList.remove('active'));
+      tabs.forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
-      
-      // Update content states
-      tabContents.forEach(content => {
+      tabContents.forEach((content) => {
         content.classList.remove('active');
-        if (content.id === targetTab + 'Tab') {
-          content.classList.add('active');
-        }
+        if (content.id === targetTab + 'Tab') content.classList.add('active');
       });
-      
-      // Load vault when switching to vault tab
-      if (targetTab === 'vault') {
-        loadVault();
-      }
+      if (targetTab === 'vault') loadVault();
     });
   });
-  
-  // Save Tab Elements
+
   const wordInput = document.getElementById('wordInput');
   const mnemonicInput = document.getElementById('mnemonicInput');
   const contextInput = document.getElementById('contextInput');
@@ -485,10 +643,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const baselineMeaning = document.getElementById('baselineMeaning');
   const baselineToggle = document.getElementById('baselineToggle');
   const baselineArrow = document.getElementById('baselineArrow');
-  
+
   let currentMeaning = '';
-  
-  // Toggle baseline meaning visibility
+
   if (baselineToggle) {
     baselineToggle.addEventListener('click', () => {
       const isExpanded = baselineMeaning.classList.contains('show');
@@ -501,64 +658,88 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-  
+
   const fetchBasicMeaning = (word) => {
     const cleaned = (word || '').trim();
     if (!cleaned) {
-      baselineMeaning.textContent = 'Enter a word to fetch definition';
+      baselineMeaning.textContent = 'Enter a word to fetch a definition';
       baselineMeaning.classList.add('empty');
+      currentMeaning = '';
+      currentMeaningGlobal = '';
+      refreshSaveSuggestion();
       return;
     }
 
-    baselineMeaning.textContent = 'Fetching definition...';
+    baselineMeaning.textContent = 'Fetching…';
     baselineMeaning.classList.add('empty');
     currentMeaning = '';
+    currentMeaningGlobal = '';
 
     fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(cleaned))
-      .then((res) => res.ok ? res.json() : null)
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data || !Array.isArray(data) || !data[0]?.meanings?.length) {
-          baselineMeaning.textContent = 'No definition found';
+          baselineMeaning.textContent = 'No definition found — you can still save the word.';
           baselineMeaning.classList.add('empty');
+          currentMeaning = '';
+          currentMeaningGlobal = '';
+          refreshSaveSuggestion();
           return;
         }
-        
+
         const firstMeaning = data[0].meanings[0];
         const firstDef = firstMeaning.definitions && firstMeaning.definitions[0]?.definition;
         if (firstDef) {
           currentMeaning = firstDef;
+          currentMeaningGlobal = firstDef;
           baselineMeaning.textContent = firstDef;
           baselineMeaning.classList.remove('empty');
         } else {
-          baselineMeaning.textContent = 'No definition available';
+          baselineMeaning.textContent = 'No definition text in the response';
           baselineMeaning.classList.add('empty');
+          currentMeaningGlobal = '';
         }
+        refreshSaveSuggestion();
       })
       .catch(() => {
-        baselineMeaning.textContent = 'Could not fetch definition';
+        baselineMeaning.textContent = 'Could not fetch definition (offline or API error)';
         baselineMeaning.classList.add('empty');
+        currentMeaningGlobal = '';
+        refreshSaveSuggestion();
       });
   };
-  
-  // Check if there's a pending word from right-click or shortcut
+
+  if (wordInput) {
+    wordInput.addEventListener('input', () => {
+      groupsForSave = [];
+      refreshSaveSuggestion();
+    });
+  }
+  if (mnemonicInput) {
+    mnemonicInput.addEventListener('input', () => {
+      refreshSaveSuggestion();
+    });
+  }
+  if (contextInput) {
+    contextInput.addEventListener('input', () => {
+      refreshSaveSuggestion();
+    });
+  }
+
   chrome.storage.local.get(['pendingWord', 'sourceUrl'], (result) => {
     if (result.pendingWord) {
-      // Switch to save tab
-      document.querySelector('[data-tab="save"]').click();
-      
+      document.querySelector('[data-tab="save"]')?.click();
       wordInput.value = result.pendingWord;
       contextInput.value = result.sourceUrl || '';
-      
       chrome.storage.local.remove(['pendingWord', 'sourceUrl']);
       fetchBasicMeaning(wordInput.value);
       setTimeout(() => mnemonicInput.focus(), 100);
     } else {
-      // Check if text is selected
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]) {
           chrome.tabs.sendMessage(tabs[0].id, { action: 'getSelectedText' }, (response) => {
             if (response && response.text) {
-              document.querySelector('[data-tab="save"]').click();
+              document.querySelector('[data-tab="save"]')?.click();
               wordInput.value = response.text;
               fetchBasicMeaning(wordInput.value);
               setTimeout(() => mnemonicInput.focus(), 100);
@@ -568,98 +749,104 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
-  
-  // Save function
-  const saveWord = async () => {
+
+  const saveWord = () => {
     const word = wordInput.value.trim();
     if (!word) {
-      status.textContent = 'Word is required';
+      status.textContent = 'Add a word or phrase first';
       status.className = 'status error';
       return;
     }
-    
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+
+    const suggestion = pendingSuggestion || suggestGroupFromContent({
+      word,
+      meaning: currentMeaning,
+      context: contextInput.value.trim(),
+      mnemonic: mnemonicInput.value.trim()
+    });
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const wordCard = {
-        word: word,
+        word,
         meaning: currentMeaning || '',
         mnemonic: mnemonicInput.value.trim(),
         context: contextInput.value.trim() || (tabs[0] ? tabs[0].url : ''),
         sourceUrl: tabs[0] ? tabs[0].url : '',
-        dateAdded: new Date().toISOString()
+        groups: [...groupsForSave],
+        suggestedGroup: suggestion
       };
-      
+
       saveBtn.disabled = true;
-      status.innerHTML = '<span class="loading"></span>Saving...';
+      status.textContent = 'Saving…';
       status.className = 'status';
-      
-      // Save to local storage
-      chrome.runtime.sendMessage({
-        action: 'saveWord',
-        ...wordCard
-      }, (response) => {
-        saveBtn.disabled = false;
-        if (response && response.success) {
-          status.textContent = 'Saved to Word Vault! ✓';
-          status.className = 'status success';
-          
-          // Clear inputs
-          wordInput.value = '';
-          mnemonicInput.value = '';
-          contextInput.value = '';
-          currentMeaning = '';
-          baselineMeaning.textContent = 'Enter a word to fetch definition';
-          baselineMeaning.classList.add('empty');
-          
-          // Switch to vault tab to show the new word
-          setTimeout(() => {
-            document.querySelector('[data-tab="vault"]').click();
-          }, 500);
-        } else {
-          status.textContent = 'Error saving';
-          status.className = 'status error';
+
+      chrome.runtime.sendMessage(
+        {
+          action: 'saveWord',
+          ...wordCard
+        },
+        (response) => {
+          saveBtn.disabled = false;
+          if (response && response.success) {
+            status.textContent = 'Saved';
+            status.className = 'status success';
+            wordInput.value = '';
+            mnemonicInput.value = '';
+            contextInput.value = '';
+            currentMeaning = '';
+            currentMeaningGlobal = '';
+            groupsForSave = [];
+            baselineMeaning.textContent = 'Enter a word to fetch a definition';
+            baselineMeaning.classList.add('empty');
+            suggestedStrip.classList.remove('visible');
+            setTimeout(() => document.querySelector('[data-tab="vault"]')?.click(), 400);
+          } else {
+            status.textContent = 'Could not save';
+            status.className = 'status error';
+          }
         }
-      });
+      );
     });
   };
-  
-  // Event listeners
-  saveBtn.addEventListener('click', saveWord);
-  
+
+  if (saveBtn) saveBtn.addEventListener('click', saveWord);
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      if (document.getElementById('saveTab').classList.contains('active')) {
+      if (document.getElementById('saveTab').classList.contains('active')) saveWord();
+    }
+  });
+
+  if (wordInput) {
+    wordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        fetchBasicMeaning(wordInput.value);
+        setTimeout(() => mnemonicInput.focus(), 100);
+      }
+    });
+  }
+
+  if (mnemonicInput) {
+    mnemonicInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
         saveWord();
       }
-    }
-  });
-  
-  wordInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      fetchBasicMeaning(wordInput.value);
-      setTimeout(() => mnemonicInput.focus(), 100);
-    }
-  });
-  
-  mnemonicInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      saveWord();
-    }
-  });
-  
-  contextInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveWord();
-    }
-  });
-  
-  // Load vault initially if on vault tab
+    });
+  }
+
+  if (contextInput) {
+    contextInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveWord();
+      }
+    });
+  }
+
   setTimeout(() => {
-    if (document.getElementById('vaultTab') && document.getElementById('vaultTab').classList.contains('active')) {
-      loadVault();
-    }
+    if (document.getElementById('vaultTab')?.classList.contains('active')) loadVault();
   }, 100);
 });

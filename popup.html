@@ -5,591 +5,812 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Word Vault</title>
   <style>
+:root {
+      --bg: #0f1419;
+      --surface: #ffffff;
+      --surface-2: #f6f7f9;
+      --border: #e2e5eb;
+      --text: #1a1d24;
+      --muted: #5c6370;
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --shadow: 0 1px 2px rgba(15, 20, 25, 0.06), 0 4px 12px rgba(15, 20, 25, 0.08);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
-      width: 420px;
+      width: 400px;
       max-height: 600px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      background: white;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--surface-2);
+      line-height: 1.45;
     }
-    
-    /* Tabs */
+
+    .app-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-name {
+      font-weight: 650;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
     .tabs {
       display: flex;
-      border-bottom: 2px solid #e8e8e8;
-      background: #fafafa;
+      gap: 4px;
+      padding: 8px 10px 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
     }
-    
+
     .tab {
       flex: 1;
-      padding: 12px 16px;
+      padding: 10px 8px;
       text-align: center;
       cursor: pointer;
-      font-weight: 500;
-      color: #666;
-      transition: all 0.2s;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--muted);
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      transition: color 0.15s, background 0.15s;
     }
-    
+
     .tab:hover {
-      background: #f0f0f0;
+      color: var(--text);
+      background: var(--surface-2);
     }
-    
+
     .tab.active {
-      color: #4A90E2;
-      border-bottom-color: #4A90E2;
-      background: white;
+      color: var(--accent);
+      background: var(--surface-2);
+      box-shadow: inset 0 -2px 0 var(--accent);
     }
-    
+
     .tab-content {
       display: none;
-      padding: 20px;
-      max-height: 560px;
+      padding: 14px;
+      max-height: 520px;
       overflow-y: auto;
     }
-    
+
     .tab-content.active {
       display: block;
     }
-    
-    /* Save Tab Styles */
-    .header {
-      margin-bottom: 20px;
-      font-weight: 600;
-      color: #333;
-      font-size: 16px;
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 10px;
     }
-    
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
     .field {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
-    
-    label {
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label, .label {
       display: block;
       margin-bottom: 6px;
-      font-size: 12px;
-      color: #666;
-      font-weight: 500;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.04em;
     }
-    
+
+    .label-optional::after {
+      content: ' · optional';
+      font-weight: 500;
+      opacity: 0.75;
+    }
+
     input, textarea {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
       font-family: inherit;
-      font-size: 14px;
-      background: white;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text);
     }
-    
+
     input:focus, textarea:focus {
       outline: none;
-      border-color: #4A90E2;
-      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
-    
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-      line-height: 1.5;
-    }
-    
+
     .word-input {
       font-weight: 600;
-      color: #333;
-      font-size: 16px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
     }
-    
-    .baseline-container {
-      margin-bottom: 16px;
-      border-top: 1px solid #e8e8e8;
-      border-bottom: 1px solid #e8e8e8;
-      padding: 12px 0;
+
+    textarea {
+      resize: vertical;
+      min-height: 72px;
+      line-height: 1.5;
     }
-    
-    .baseline-toggle {
+
+    .understanding-block {
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 48%);
+      padding: 12px;
+    }
+
+    .understanding-block label {
+      color: var(--accent);
+    }
+
+    .understanding-block textarea {
+      border: none;
+      padding: 8px 0 0;
+      min-height: 88px;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .understanding-block textarea:focus {
+      box-shadow: none;
+    }
+
+    .collapse-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       cursor: pointer;
       -webkit-user-select: none;
       user-select: none;
-      margin-bottom: 8px;
+      padding: 8px 0;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--border);
     }
-    
-    .baseline-label {
+
+    .collapse-hint {
       font-size: 11px;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 500;
-      margin: 0;
+      color: var(--muted);
+      font-weight: 600;
     }
-    
-    .baseline-arrow {
-      margin-left: 6px;
+
+    .collapse-arrow {
       font-size: 10px;
-      color: #999;
+      color: var(--muted);
       transition: transform 0.2s;
     }
-    
-    .baseline-arrow.expanded {
+
+    .collapse-arrow.expanded {
       transform: rotate(90deg);
     }
-    
+
     .baseline-meaning {
       font-size: 12px;
-      color: #999;
-      line-height: 1.5;
-      padding: 8px;
-      background: #f8f8f8;
-      border-radius: 4px;
-      border-left: 2px solid #e0e0e0;
+      color: var(--muted);
+      line-height: 1.55;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--border);
       display: none;
+      margin-bottom: 4px;
     }
-    
+
     .baseline-meaning.show {
       display: block;
     }
-    
+
     .baseline-meaning.empty {
       font-style: italic;
-      color: #ccc;
-    }
-    
-    .understanding-field {
-      background: white;
-      border: 2px solid #4A90E2;
-      border-radius: 6px;
-      padding: 12px;
-      margin-top: 4px;
-    }
-    
-    .understanding-field label {
-      color: #4A90E2;
-      font-weight: 600;
-    }
-    
-    .understanding-field textarea {
-      border: none;
-      padding: 0;
-      min-height: 100px;
-      font-size: 15px;
-      background: transparent;
-    }
-    
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    
-    button {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .save-btn {
-      background: #4A90E2;
-      color: white;
-    }
-    
-    .save-btn:hover {
-      background: #357ABD;
-    }
-    
-    .status {
-      margin-top: 12px;
-      font-size: 12px;
-      text-align: center;
-      min-height: 18px;
-      font-weight: 500;
-    }
-    
-    .status.error {
-      color: #e74c3c;
-    }
-    
-    .status.success {
-      color: #27ae60;
-    }
-    
-    /* Vault Tab Styles */
-    .vault-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    
-    .vault-actions {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .vault-btn {
-      padding: 8px 16px;
-      font-size: 12px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-      background: white;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .export-btn {
-      border-color: #4A90E2;
-      color: #4A90E2;
-    }
-    
-    .export-btn:hover {
-      background: #4A90E2;
-      color: white;
-    }
-    
-    .clear-btn {
-      color: #e74c3c;
-      border-color: #e74c3c;
-    }
-    
-    .clear-btn:hover {
-      background: #e74c3c;
-      color: white;
-    }
-    
-    .stats {
-      padding: 12px;
-      background: #f8f8f8;
-      border-radius: 4px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      color: #666;
-      border: 1px solid #ececec;
+      color: #a0a7b4;
     }
 
-    .vault-toolbar {
+    .suggested-strip {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .suggested-strip.visible {
+      display: block;
+    }
+
+    .suggested-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .suggested-row {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .pill-accent {
+      border-color: rgba(37, 99, 235, 0.35);
+      background: var(--accent-soft);
+      color: #1d4ed8;
+    }
+
+    .btn-inline {
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-inline:hover {
+      background: var(--surface-2);
+      border-color: #cbd1dc;
+    }
+
+    .btn-inline.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-inline.primary:hover {
+      background: #1d4ed8;
+    }
+
+    .group-choice-hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .btn-save {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-save:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-save:active {
+      transform: scale(0.99);
+    }
+
+    .btn-save:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 11px;
+      text-align: center;
+      min-height: 16px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .status.error {
+      color: #dc2626;
+    }
+
+    .status.success {
+      color: #059669;
+    }
+
+    .hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .vault-top {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       margin-bottom: 12px;
     }
 
-    .search-input {
+    .vault-actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .btn-tool {
+      padding: 7px 11px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-tool:hover {
+      background: var(--surface-2);
+    }
+
+    .btn-tool.danger {
+      color: #b91c1c;
+      border-color: #fecaca;
+      background: #fef2f2;
+    }
+
+    .btn-tool.danger:hover {
+      background: #fee2e2;
+    }
+
+    .stats-pill {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .groups-panel {
+      display: none;
+      padding: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+
+    .groups-panel.visible {
+      display: block;
+    }
+
+    .group-pill {
+      display: inline-block;
+      padding: 5px 11px;
+      margin: 3px 4px 3px 0;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .group-pill:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .group-pill.active-filter {
+      border-color: var(--accent);
+      color: #1d4ed8;
+      background: var(--accent-soft);
+    }
+
+    .group-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .group-input-row input {
       flex: 1;
       padding: 8px 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
       font-size: 13px;
-      background: #fff;
+      background: var(--surface);
     }
 
     .search-input:focus {
       outline: none;
-      border-color: #4A90E2;
-      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.12);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
-    .active-filter {
+    .filter-chip {
       display: none;
-      margin-bottom: 12px;
-      font-size: 12px;
-      color: #4A90E2;
-      background: #edf4ff;
-      border: 1px solid #cfe2ff;
-      border-radius: 999px;
-      padding: 6px 10px;
       width: fit-content;
+      max-width: 100%;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1d4ed8;
+      background: var(--accent-soft);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      border-radius: 999px;
+      padding: 6px 12px;
+      margin-bottom: 8px;
     }
-    
+
+    .filter-chip.visible {
+      display: block;
+    }
+
     .word-list {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 10px;
     }
-    
+
     .word-card {
-      padding: 16px;
-      border: 1px solid #e7eaf0;
-      border-radius: 10px;
-      background: #fff;
       position: relative;
-      transition: all 0.2s;
+      padding: 14px 14px 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 2px rgba(15, 20, 25, 0.04);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    
+
     .word-card:hover {
-      border-color: #4A90E2;
-      box-shadow: 0 8px 18px rgba(74, 144, 226, 0.1);
+      border-color: #c7d2fe;
+      box-shadow: var(--shadow);
     }
-    
+
     .word-card.selected {
-      border-color: #4A90E2;
-      background: #f0f7ff;
+      border-color: var(--accent);
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 36%);
     }
-    
+
     .word-checkbox {
       position: absolute;
-      top: 12px;
+      top: 14px;
       left: 12px;
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
       cursor: pointer;
-      accent-color: #4A90E2;
     }
-    
+
     .word-card-content {
-      margin-left: 30px;
+      margin-left: 0;
+      padding-left: 22px;
     }
-    
+
     .selection-mode .word-card-content {
-      margin-left: 32px;
+      padding-left: 24px;
     }
-    
+
     .vault-header-actions {
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
-    
+
     .selection-actions {
       display: none;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
+      flex-wrap: wrap;
     }
-    
+
     .selection-mode .selection-actions {
       display: flex;
     }
-    
-    .selection-mode .vault-actions:not(.selection-actions) {
+
+    .selection-mode .vault-primary-actions {
       display: none;
     }
-    
-    .group-btn {
-      border-color: #27ae60;
-      color: #27ae60;
-    }
-    
-    .group-btn:hover {
-      background: #27ae60;
-      color: white;
-    }
-    
-    .delete-btn {
-      border-color: #e74c3c;
-      color: #e74c3c;
-    }
-    
-    .delete-btn:hover {
-      background: #e74c3c;
-      color: white;
-    }
-    
-    .select-all-btn {
-      border-color: #4A90E2;
-      color: #4A90E2;
-      font-size: 11px;
-      padding: 6px 12px;
-    }
-    
-    .select-all-btn:hover {
-      background: #4A90E2;
-      color: white;
-    }
-    
-    .groups-section {
-      margin-bottom: 20px;
-      padding: 12px;
-      background: #f8f8f8;
-      border-radius: 4px;
-    }
-    
-    .group-item {
-      display: inline-block;
-      padding: 6px 12px;
-      margin: 4px;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 16px;
-      font-size: 12px;
-      color: #666;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .group-item:hover {
-      border-color: #4A90E2;
-      color: #4A90E2;
-    }
-    
-    .group-input {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    
-    .group-input input {
-      flex: 1;
-      padding: 6px 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    
-    .group-input button {
-      padding: 6px 12px;
-      font-size: 12px;
-    }
-    
+
     .word-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 8px;
-    }
-    
-    .word-meaning {
-      font-size: 13px;
-      color: #8f95a0;
-      margin-bottom: 10px;
-      font-style: italic;
-    }
-    
-    .word-understanding {
-      font-size: 14px;
-      color: #333;
-      line-height: 1.6;
-      margin-bottom: 10px;
-      padding: 10px;
-      background: #f6f9ff;
-      border-left: 3px solid #4A90E2;
-      border-radius: 4px;
-    }
-    
-    .word-context {
-      font-size: 12px;
-      color: #666;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
       margin-bottom: 6px;
     }
-    
-    .word-date {
-      font-size: 11px;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+
+    .word-meaning {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-    
+
+    .word-understanding {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.55;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent);
+    }
+
+    .word-context {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .word-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .tag.user-group {
+      border-color: rgba(37, 99, 235, 0.35);
+      color: #1d4ed8;
+      background: var(--accent-soft);
+    }
+
+    .suggested-hint {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--muted);
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: var(--radius-sm);
+    }
+
+    .link-add {
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+
+    .word-date {
+      font-size: 10px;
+      color: #8b929e;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
     .empty-state {
       text-align: center;
-      padding: 60px 20px;
-      color: #999;
+      padding: 48px 20px;
+      color: var(--muted);
     }
-    
+
     .empty-icon {
-      font-size: 48px;
-      margin-bottom: 10px;
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.85;
     }
-    
-    .shortcut-hint {
+
+    #selectedCount {
       font-size: 11px;
-      color: #999;
-      margin-top: 12px;
-      text-align: center;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .vault-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .vault-title-row .panel-title {
+      margin-bottom: 0;
+    }
+
+    .empty-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .empty-sub {
+      font-size: 12px;
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
-  <!-- Tabs -->
-  <div class="tabs">
-    <div class="tab active" data-tab="save">Save</div>
-    <div class="tab" data-tab="vault">Vault</div>
+  <div class="app-bar">
+    <div class="brand">
+      <span class="brand-name">Word Vault</span>
+      <span class="brand-tag">Capture · recall · own the meaning</span>
+    </div>
   </div>
-  
-  <!-- Save Tab -->
-  <div class="tab-content active" id="saveTab">
-    <div class="header">Save to Memory</div>
-    
-    <div class="field">
-      <label>Anchor Word</label>
-      <input type="text" id="wordInput" class="word-input" placeholder="word or phrase">
-    </div>
-    
-    <div class="baseline-container">
-      <div class="baseline-toggle" id="baselineToggle">
-        <span class="baseline-label">Auto Explanation</span>
-        <span class="baseline-arrow" id="baselineArrow">▸</span>
-      </div>
-      <div class="baseline-meaning empty" id="baselineMeaning">
-        Enter a word to fetch definition
-      </div>
-    </div>
-    
-    <div class="field understanding-field">
-      <label>📝 My Understanding (optional)</label>
-      <textarea id="mnemonicInput" placeholder="What does this actually mean to me? My mental model, intuition, mnemonic... (optional)"></textarea>
-    </div>
-    
-    <div class="field">
-      <label>Context (optional)</label>
-      <input type="text" id="contextInput" placeholder="sentence, URL, or note about where you saw it">
-    </div>
-    
-    <div class="button-group">
-      <button class="save-btn" id="saveBtn">Save</button>
-    </div>
-    
-    <div class="status" id="status"></div>
-    <div class="shortcut-hint">Right-click any word → "Save to Word Vault" | Ctrl+Enter to save</div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab active" data-tab="save" role="tab">Save</button>
+    <button type="button" class="tab" data-tab="vault" role="tab">Vault</button>
   </div>
-  
-  <!-- Vault Tab -->
-  <div class="tab-content" id="vaultTab">
-    <div class="vault-header">
-      <div class="header">Your Word Vault</div>
-      <div class="vault-header-actions">
-        <div class="vault-actions">
-          <button class="vault-btn select-all-btn" id="selectAllBtn">Select All</button>
-          <button class="vault-btn export-btn" id="exportBtn">Export</button>
-          <button class="vault-btn clear-btn" id="clearBtn">Clear</button>
+
+  <div class="tab-content active" id="saveTab" role="tabpanel">
+    <div class="panel-title">New entry</div>
+    <div class="card">
+      <div class="field">
+        <label for="wordInput">Word or phrase</label>
+        <input type="text" id="wordInput" class="word-input" placeholder="e.g. portentous" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <div class="collapse-row" id="baselineToggle" role="button" tabindex="0">
+          <span class="collapse-hint">Dictionary definition</span>
+          <span class="collapse-arrow" id="baselineArrow">▸</span>
         </div>
-        <div class="selection-actions vault-actions">
-          <span id="selectedCount" style="font-size: 12px; color: #666; margin-right: 8px;">0 selected</span>
-          <button class="vault-btn group-btn" id="groupBtn">Group</button>
-          <button class="vault-btn delete-btn" id="deleteSelectedBtn">Delete</button>
-          <button class="vault-btn" id="cancelSelectionBtn" style="border-color: #999; color: #999;">Cancel</button>
+        <div class="baseline-meaning empty" id="baselineMeaning">Enter a word to fetch a definition</div>
+      </div>
+
+      <div class="field understanding-block">
+        <label for="mnemonicInput" class="label-optional">My understanding</label>
+        <textarea id="mnemonicInput" placeholder="Your mental model, intuition, or note — optional but valuable"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="contextInput" class="label-optional">Context</label>
+        <input type="text" id="contextInput" placeholder="Sentence, page, or where you saw it">
+      </div>
+
+      <div class="suggested-strip" id="suggestedStrip">
+        <div class="suggested-label">Suggested group</div>
+        <div class="suggested-row">
+          <span class="pill pill-accent" id="suggestedGroupPill"></span>
+          <button type="button" class="btn-inline primary" id="useSuggestedBtn">Use</button>
+          <button type="button" class="btn-inline" id="customGroupBtn">Custom…</button>
+          <button type="button" class="btn-inline" id="clearGroupChoiceBtn">None</button>
+        </div>
+        <p class="group-choice-hint">Based on your word and definition. You can change groups anytime from the vault.</p>
+      </div>
+
+      <button type="button" class="btn-save" id="saveBtn">Save to vault</button>
+      <div class="status" id="status"></div>
+      <p class="hint">Right-click selected text → Save to Word Vault · Ctrl+Enter to save</p>
+    </div>
+  </div>
+
+  <div class="tab-content" id="vaultTab" role="tabpanel">
+    <div class="vault-top">
+      <div class="vault-title-row">
+        <div class="panel-title">Library</div>
+        <div class="vault-header-actions">
+          <div class="vault-primary-actions vault-actions-row">
+            <button type="button" class="btn-tool" id="selectAllBtn">Select</button>
+            <button type="button" class="btn-tool" id="exportBtn">Export</button>
+            <button type="button" class="btn-tool danger" id="clearBtn">Clear all</button>
+          </div>
+          <div class="selection-actions vault-actions-row">
+            <span id="selectedCount">0 selected</span>
+            <button type="button" class="btn-tool" id="groupBtn">Group</button>
+            <button type="button" class="btn-tool danger" id="deleteSelectedBtn">Delete</button>
+            <button type="button" class="btn-tool" id="cancelSelectionBtn">Cancel</button>
+          </div>
         </div>
       </div>
-    </div>
-    
-    <div class="groups-section" id="groupsSection" style="display: none;">
-      <div style="font-size: 12px; font-weight: 500; color: #666; margin-bottom: 8px;">Groups:</div>
-      <div id="groupsList"></div>
-      <div class="group-input">
-        <input type="text" id="newGroupInput" placeholder="Enter group name...">
-        <button class="vault-btn" id="createGroupBtn" style="border-color: #27ae60; color: #27ae60;">Create Group</button>
+
+      <div class="groups-panel" id="groupsSection">
+        <div class="label" style="margin-bottom:8px;">Filter by group</div>
+        <div id="groupsList"></div>
+        <div class="group-input-row">
+          <input type="text" id="newGroupInput" placeholder="New group name">
+          <button type="button" class="btn-tool" id="createGroupBtn">Create</button>
+        </div>
       </div>
+
+      <div class="stats-pill" id="stats">Loading…</div>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search word, definition, note, or context…" autocomplete="off">
+      <div class="filter-chip" id="activeFilter"></div>
     </div>
-    
-    <div class="stats" id="stats">Loading...</div>
-    <div class="vault-toolbar">
-      <input type="text" id="searchInput" class="search-input" placeholder="Search words, context, or understanding...">
-    </div>
-    <div class="active-filter" id="activeFilter"></div>
-    <div class="word-list" id="wordList">Loading...</div>
+    <div class="word-list" id="wordList">Loading…</div>
   </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>
