@@ -117,13 +117,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const wordCard = {
         id: wordId,
         word: request.word,
+        fullText: request.fullText || '',
+        displayTitle: request.displayTitle || '',
+        entryType: request.entryType === 'note' ? 'note' : 'term',
         meaning: request.meaning || '',
         mnemonic: request.mnemonic || '',
         context: request.context || '',
         sourceUrl: request.sourceUrl || '',
         dateAdded: new Date().toISOString(),
         groups: payloadGroups,
-        suggestedGroup
+        suggestedGroup,
+        userClues: typeof request.userClues === 'string' ? request.userClues.trim() : '',
+        relatedWords: Array.isArray(request.relatedWords) ? request.relatedWords.filter(Boolean) : []
       };
 
       words.push(wordCard);

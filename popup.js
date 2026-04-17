@@ -61,19 +61,53 @@ const GROUP_RULES = [
     name: 'Everyday life',
     keys: [
       'food', 'travel', 'family', 'home', 'friend', 'sport', 'game', 'weather', 'fashion',
-      'cooking', 'garden', 'hobby'
+      'cooking', 'garden', 'hobby', 'laugh', 'joke', 'lively', 'crowd', 'noisy', 'rowdy', 'party',
+      'cheer', 'festive', 'boisterous', 'rambunctious'
     ]
   }
 ];
 
-function suggestGroupFromContent({ word, meaning, context, mnemonic }) {
-  const blob = [word, meaning, context, mnemonic].filter(Boolean).join(' ').toLowerCase();
+function suggestGroupFromContent({ word, meaning, context, mnemonic, userClues }) {
+  const blob = [word, meaning, context, mnemonic, userClues].filter(Boolean).join(' ').toLowerCase();
   if (!blob.trim()) return 'General vocabulary';
 
   for (const rule of GROUP_RULES) {
     if (rule.keys.some((k) => blob.includes(k))) return rule.name;
   }
   return 'General vocabulary';
+}
+
+function normalizeSelectionText(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+
+function classifyEntryType(text) {
+  const normalized = normalizeSelectionText(text);
+  const words = normalized ? normalized.split(/\s+/).length : 0;
+  const hasSentencePunctuation = /[.!?;:]/.test(normalized);
+  if (normalized.length > 90 || words > 14 || hasSentencePunctuation) {
+    return 'note';
+  }
+  return 'term';
+}
+
+function buildDisplayTitle(text, entryType) {
+  const normalized = normalizeSelectionText(text);
+  if (entryType !== 'note') return normalized;
+  return normalized.length > 78 ? `${normalized.slice(0, 78).trim()}…` : normalized;
+}
+
+/** First substantial token for synonym lookup (Datamuse works best on single words). */
+function headwordForSynonyms(phrase) {
+  const t = (phrase || '').trim();
+  if (!t) return '';
+  const parts = t.split(/\s+/).filter(Boolean);
+  for (const p of parts) {
+    const clean = p.replace(/[^a-zA-Z'-]/g, '');
+    if (clean.length >= 3) return clean.toLowerCase();
+  }
+  const fallback = parts[0]?.replace(/[^a-zA-Z'-]/g, '') || '';
+  return fallback.length ? fallback.toLowerCase() : '';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -110,6 +144,67 @@ document.addEventListener('DOMContentLoaded', () => {
   let groupsForSave = [];
   let pendingSuggestion = '';
   let currentMeaningGlobal = '';
+  let relatedWordsList = [];
+
+  const relatedWordsDisplay = document.getElementById('relatedWordsDisplay');
+  const userCluesInput = document.getElementById('userCluesInput');
+
+  const setRelatedWordsLoading = () => {
+    relatedWordsList = [];
+    if (relatedWordsDisplay) {
+      relatedWordsDisplay.textContent = 'Looking up related words…';
+      relatedWordsDisplay.className = 'related-words-line muted';
+    }
+  };
+
+  const fetchRelatedWords = (phrase) => {
+    const head = headwordForSynonyms(phrase);
+    if (!head || head.length < 2) {
+      relatedWordsList = [];
+      if (relatedWordsDisplay) {
+        relatedWordsDisplay.textContent =
+          'Enter a word — we’ll suggest a “same family” list for recall (e.g. boisterous, exuberant, …).';
+        relatedWordsDisplay.className = 'related-words-line muted';
+      }
+      return;
+    }
+
+    setRelatedWordsLoading();
+
+    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(head)}&max=14`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list) => {
+        if (!Array.isArray(list)) list = [];
+        const seen = new Set([head]);
+        const out = [];
+        for (const item of list) {
+          const w = (item.word || '').trim();
+          if (!w || seen.has(w.toLowerCase())) continue;
+          seen.add(w.toLowerCase());
+          out.push(w);
+          if (out.length >= 8) break;
+        }
+        relatedWordsList = out;
+        if (relatedWordsDisplay) {
+          if (out.length === 0) {
+            relatedWordsDisplay.textContent =
+              'No close matches — use your own clues above (laughing, joking, lively crowd, …).';
+            relatedWordsDisplay.className = 'related-words-line muted';
+          } else {
+            relatedWordsDisplay.textContent = `Think of words like: ${out.join(', ')}`;
+            relatedWordsDisplay.className = 'related-words-line';
+          }
+        }
+      })
+      .catch(() => {
+        relatedWordsList = [];
+        if (relatedWordsDisplay) {
+          relatedWordsDisplay.textContent =
+            'Could not load related words (offline or blocked). Your clues still save.';
+          relatedWordsDisplay.className = 'related-words-line muted';
+        }
+      });
+  };
 
   const suggestedStrip = document.getElementById('suggestedStrip');
   const suggestedGroupPill = document.getElementById('suggestedGroupPill');
@@ -122,16 +217,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const meaning = currentMeaningGlobal;
     const context = (document.getElementById('contextInput')?.value || '').trim();
     const mnemonic = (document.getElementById('mnemonicInput')?.value || '').trim();
+    const userClues = (document.getElementById('userCluesInput')?.value || '').trim();
 
     if (!suggestedStrip || !suggestedGroupPill) return;
 
-    if (!word && !meaning && !context && !mnemonic) {
+    if (!word && !meaning && !context && !mnemonic && !userClues) {
       pendingSuggestion = '';
       suggestedStrip.classList.remove('visible');
       return;
     }
 
-    pendingSuggestion = suggestGroupFromContent({ word, meaning, context, mnemonic });
+    pendingSuggestion = suggestGroupFromContent({ word, meaning, context, mnemonic, userClues });
     suggestedGroupPill.textContent = pendingSuggestion;
     suggestedStrip.classList.add('visible');
   };
@@ -143,6 +239,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const wordId = word.id || `${word.word}_${word.dateAdded}_${index}`;
         const isSelected = selectedWordIds.has(wordId);
         const groups = word.groups || [];
+        const entryType = word.entryType || 'term';
+        const fullText = normalizeSelectionText(word.fullText || word.word || '');
+        const displayTitle = word.displayTitle || buildDisplayTitle(fullText, entryType);
 
         const userTags = groups
           .map(
@@ -167,14 +266,33 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="word-card ${isSelected ? 'selected' : ''}" data-word-id="${wordId}">
           <input type="checkbox" class="word-checkbox" data-word-id="${wordId}" ${isSelected ? 'checked' : ''} ${selectionMode ? '' : 'style="display:none;"'}>
           <div class="word-card-content">
-            <div class="word-title">${escapeHtml(word.word || 'Untitled')}</div>
-            ${word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
-            ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
-            ${word.context ? `<div class="word-context">${escapeHtml(word.context)}</div>` : ''}
+            <div class="word-title">${escapeHtml(displayTitle || 'Untitled')}</div>
             <div class="word-meta">
+              <span class="tag">${entryType === 'note' ? 'Note/Proof' : 'Word/Phrase'}</span>
               ${userTags}
               <span class="word-date">${formatDate(word.dateAdded)}</span>
             </div>
+            ${entryType === 'note' && fullText ? `<div class="word-meaning note-text">${escapeHtml(fullText)}</div>` : ''}
+            ${entryType !== 'note' && word.meaning ? `<div class="word-meaning">${escapeHtml(word.meaning)}</div>` : ''}
+            ${word.mnemonic ? `<div class="word-understanding">${escapeHtml(word.mnemonic)}</div>` : ''}
+            ${word.context ? `<div class="word-context">${escapeHtml(word.context)}</div>` : ''}
+            ${
+              word.userClues ||
+              (word.relatedWords && word.relatedWords.length)
+                ? `<div class="vault-recall">
+                ${
+                  word.userClues
+                    ? `<div class="rw-label">Recall clues</div><div class="rw-clues">${escapeHtml(word.userClues)}</div>`
+                    : ''
+                }
+                ${
+                  word.relatedWords && word.relatedWords.length
+                    ? `<div class="rw-label">Same family</div><div class="rw-family">Think of words like: ${word.relatedWords.map((w) => `<em>${escapeHtml(w)}</em>`).join(', ')}</div>`
+                    : ''
+                }
+              </div>`
+                : ''
+            }
             ${suggestedRow}
           </div>
         </div>
@@ -235,7 +353,12 @@ document.addEventListener('DOMContentLoaded', () => {
           (word.meaning || '').toLowerCase().includes(query) ||
           (word.mnemonic || '').toLowerCase().includes(query) ||
           (word.context || '').toLowerCase().includes(query) ||
-          (word.suggestedGroup || '').toLowerCase().includes(query)
+          (word.suggestedGroup || '').toLowerCase().includes(query) ||
+          (word.userClues || '').toLowerCase().includes(query) ||
+          (word.fullText || '').toLowerCase().includes(query) ||
+          (Array.isArray(word.relatedWords) ? word.relatedWords.join(' ') : '')
+            .toLowerCase()
+            .includes(query)
       );
     }
     if (stats) {
@@ -509,7 +632,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const markdown = words
         .map((word) => {
-          const lines = [`## ${word.word || 'Untitled'}`, '', `**Date:** ${formatDate(word.dateAdded)}`, ''];
+          const entryType = word.entryType || 'term';
+          const fullText = word.fullText || '';
+          const displayTitle = word.displayTitle || buildDisplayTitle(fullText || word.word || '', entryType);
+          const lines = [`## ${displayTitle || 'Untitled'}`, '', `**Type:** ${entryType === 'note' ? 'Note/Proof' : 'Word/Phrase'}`, `**Date:** ${formatDate(word.dateAdded)}`, ''];
+
+          if (entryType === 'note' && fullText) {
+            lines.push(`**Saved text:** ${fullText}`);
+            lines.push('');
+          }
 
           if (word.groups && word.groups.length) {
             lines.push(`**Groups:** ${word.groups.join(', ')}`);
@@ -529,6 +660,14 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           if (word.context) {
             lines.push(`*Context:* ${word.context}`);
+            lines.push('');
+          }
+          if (word.userClues) {
+            lines.push(`**Recall clues:** ${word.userClues}`);
+            lines.push('');
+          }
+          if (word.relatedWords && word.relatedWords.length) {
+            lines.push(`**Same family:** ${word.relatedWords.join(', ')}`);
             lines.push('');
           }
           if (word.sourceUrl) {
@@ -660,12 +799,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const fetchBasicMeaning = (word) => {
-    const cleaned = (word || '').trim();
+    const cleaned = normalizeSelectionText(word);
+    const entryType = classifyEntryType(cleaned);
     if (!cleaned) {
       baselineMeaning.textContent = 'Enter a word to fetch a definition';
       baselineMeaning.classList.add('empty');
       currentMeaning = '';
       currentMeaningGlobal = '';
+      relatedWordsList = [];
+      if (relatedWordsDisplay) {
+        relatedWordsDisplay.textContent =
+          'Enter a word — we’ll suggest a “same family” list for recall (e.g. boisterous, exuberant, …).';
+        relatedWordsDisplay.className = 'related-words-line muted';
+      }
       refreshSaveSuggestion();
       return;
     }
@@ -675,6 +821,21 @@ document.addEventListener('DOMContentLoaded', () => {
     currentMeaning = '';
     currentMeaningGlobal = '';
 
+    if (entryType === 'note') {
+      baselineMeaning.textContent = 'Long excerpt detected: dictionary lookup skipped for notes/proofs.';
+      currentMeaning = '';
+      currentMeaningGlobal = '';
+      relatedWordsList = [];
+      if (relatedWordsDisplay) {
+        relatedWordsDisplay.textContent = 'Same-family words are shown for short words/phrases.';
+        relatedWordsDisplay.className = 'related-words-line muted';
+      }
+      refreshSaveSuggestion();
+      return;
+    }
+
+    fetchRelatedWords(cleaned);
+
     fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(cleaned))
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -683,6 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
           baselineMeaning.classList.add('empty');
           currentMeaning = '';
           currentMeaningGlobal = '';
+          fetchRelatedWords(cleaned);
           refreshSaveSuggestion();
           return;
         }
@@ -705,6 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
         baselineMeaning.textContent = 'Could not fetch definition (offline or API error)';
         baselineMeaning.classList.add('empty');
         currentMeaningGlobal = '';
+        fetchRelatedWords(cleaned);
         refreshSaveSuggestion();
       });
   };
@@ -722,6 +885,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (contextInput) {
     contextInput.addEventListener('input', () => {
+      refreshSaveSuggestion();
+    });
+  }
+  if (userCluesInput) {
+    userCluesInput.addEventListener('input', () => {
       refreshSaveSuggestion();
     });
   }
@@ -751,29 +919,41 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const saveWord = () => {
-    const word = wordInput.value.trim();
-    if (!word) {
+    const rawInput = wordInput.value.trim();
+    if (!rawInput) {
       status.textContent = 'Add a word or phrase first';
       status.className = 'status error';
       return;
     }
+    const normalizedInput = normalizeSelectionText(rawInput);
+    const entryType = classifyEntryType(normalizedInput);
+    const displayTitle = buildDisplayTitle(normalizedInput, entryType);
 
     const suggestion = pendingSuggestion || suggestGroupFromContent({
-      word,
+      word: normalizedInput,
       meaning: currentMeaning,
       context: contextInput.value.trim(),
-      mnemonic: mnemonicInput.value.trim()
+      mnemonic: mnemonicInput.value.trim(),
+      userClues: userCluesInput ? userCluesInput.value.trim() : ''
     });
+
+    const userClues = userCluesInput ? userCluesInput.value.trim() : '';
+    const relatedWords = [...relatedWordsList];
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const wordCard = {
-        word,
+        word: normalizedInput,
+        fullText: entryType === 'note' ? normalizedInput : '',
+        displayTitle,
+        entryType,
         meaning: currentMeaning || '',
         mnemonic: mnemonicInput.value.trim(),
         context: contextInput.value.trim() || (tabs[0] ? tabs[0].url : ''),
         sourceUrl: tabs[0] ? tabs[0].url : '',
         groups: [...groupsForSave],
-        suggestedGroup: suggestion
+        suggestedGroup: suggestion,
+        userClues,
+        relatedWords
       };
 
       saveBtn.disabled = true;
@@ -793,12 +973,19 @@ document.addEventListener('DOMContentLoaded', () => {
             wordInput.value = '';
             mnemonicInput.value = '';
             contextInput.value = '';
+            if (userCluesInput) userCluesInput.value = '';
             currentMeaning = '';
             currentMeaningGlobal = '';
             groupsForSave = [];
+            relatedWordsList = [];
             baselineMeaning.textContent = 'Enter a word to fetch a definition';
             baselineMeaning.classList.add('empty');
             suggestedStrip.classList.remove('visible');
+            if (relatedWordsDisplay) {
+              relatedWordsDisplay.textContent =
+                'Enter a word and fetch a definition — we’ll suggest related words for recall.';
+              relatedWordsDisplay.className = 'related-words-line muted';
+            }
             setTimeout(() => document.querySelector('[data-tab="vault"]')?.click(), 400);
           } else {
             status.textContent = 'Could not save';

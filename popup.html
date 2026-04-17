@@ -445,6 +445,10 @@
       display: block;
     }
 
+    .filter-group-label {
+      margin-bottom: 8px;
+    }
+
     .group-pill {
       display: inline-block;
       padding: 5px 11px;
@@ -602,6 +606,18 @@
       overflow: hidden;
     }
 
+    .word-meaning.note-text {
+      -webkit-line-clamp: unset;
+      -webkit-box-orient: unset;
+      overflow: visible;
+      display: block;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      color: #334155;
+    }
+
     .word-understanding {
       font-size: 12px;
       color: var(--text);
@@ -718,6 +734,86 @@
       font-size: 12px;
       color: var(--muted);
     }
+
+    .recall-block {
+      padding: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+
+    .recall-block .label {
+      margin-bottom: 8px;
+    }
+
+    .recall-clues-input {
+      min-height: 56px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .related-words-panel {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .related-words-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .related-words-line {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .related-words-line.muted {
+      color: var(--muted);
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    .vault-recall {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .vault-recall .rw-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .vault-recall .rw-clues {
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .vault-recall .rw-family {
+      color: #334155;
+    }
+
+    .vault-recall .rw-family em {
+      font-style: normal;
+      font-weight: 600;
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -737,8 +833,8 @@
     <div class="panel-title">New entry</div>
     <div class="card">
       <div class="field">
-        <label for="wordInput">Word or phrase</label>
-        <input type="text" id="wordInput" class="word-input" placeholder="e.g. portentous" autocomplete="off">
+        <label for="wordInput">Word, phrase, or excerpt</label>
+        <input type="text" id="wordInput" class="word-input" placeholder="e.g. portentous or a proof snippet" autocomplete="off">
       </div>
 
       <div class="field">
@@ -757,6 +853,15 @@
       <div class="field">
         <label for="contextInput" class="label-optional">Context</label>
         <input type="text" id="contextInput" placeholder="Sentence, page, or where you saw it">
+      </div>
+
+      <div class="recall-block">
+        <label for="userCluesInput" class="label-optional">Recall clues</label>
+        <textarea id="userCluesInput" class="recall-clues-input" placeholder="Sensory or situational hooks — e.g. laughing, joking, lively crowd, noisy energy"></textarea>
+        <div class="related-words-panel">
+          <div class="related-words-label">Same family (auto)</div>
+          <div class="related-words-line muted" id="relatedWordsDisplay">Enter a word and fetch a definition — we’ll suggest related words for recall.</div>
+        </div>
       </div>
 
       <div class="suggested-strip" id="suggestedStrip">
@@ -796,7 +901,7 @@
       </div>
 
       <div class="groups-panel" id="groupsSection">
-        <div class="label" style="margin-bottom:8px;">Filter by group</div>
+        <div class="label filter-group-label">Filter by group</div>
         <div id="groupsList"></div>
         <div class="group-input-row">
           <input type="text" id="newGroupInput" placeholder="New group name">
