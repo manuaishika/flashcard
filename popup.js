@@ -83,12 +83,11 @@ function normalizeSelectionText(text) {
 
 function classifyEntryType(text) {
   const normalized = normalizeSelectionText(text);
-  const words = normalized ? normalized.split(/\s+/).length : 0;
-  const hasSentencePunctuation = /[.!?;:]/.test(normalized);
-  if (normalized.length > 90 || words > 14 || hasSentencePunctuation) {
-    return 'note';
-  }
-  return 'term';
+  if (!normalized) return 'term';
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  // Keep this deterministic to avoid confusion:
+  // 1 token -> word card, more than 1 -> note/proof card.
+  return tokens.length === 1 ? 'term' : 'note';
 }
 
 function buildDisplayTitle(text, entryType) {
