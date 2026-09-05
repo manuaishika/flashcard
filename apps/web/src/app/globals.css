@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: theme("colors.paper");
+  color: theme("colors.ink");
+  font-feature-settings: "kern";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The user's own understanding — the artifact. */
+.note-artifact {
+  border-left: 2px solid theme("colors.accent");
+  padding-left: 1rem;
+  color: theme("colors.ink");
+}
+
+/* Auto-explanation — recessive scaffolding. */
+.explanation-scaffold {
+  color: theme("colors.ink-faint");
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
