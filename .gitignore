@@ -1,11 +1,38 @@
-# Chrome extension
-*.pem
-.DS_Store
+# dependencies
 node_modules/
+.pnpm-store/
 
-# Editor
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# chrome extension
+*.pem
+*.zip
+
+# editor / os
 .vscode/
 .idea/
+.DS_Store
 *.swp
 *.swo
 
+# supabase
+supabase/.branches/
+supabase/.temp/
+
+# turbo
+.turbo/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

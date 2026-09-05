@@ -1,0 +1,12 @@
+# Minimal Supabase CLI config. `supabase link --project-ref <ref>` then `supabase db push`.
+project_id = "lemma"
+
+[db]
+major_version = 15
+
+[auth]
+enable_signup = true
+# Email + password; no external SMTP needed for local dev.
+[auth.email]
+enable_signup = true
+enable_confirmations = false
