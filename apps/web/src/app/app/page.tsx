@@ -13,9 +13,10 @@ export default async function VaultPage({
   const { q } = await searchParams;
   const supabase = await createClient();
 
+  const term = q?.trim().replace(/[,()\\*]/g, " ").trim();
   let query = supabase.from("words").select("*").order("created_at", { ascending: false }).limit(100);
-  if (q?.trim()) {
-    query = query.or(`text.ilike.%${q}%,user_note.ilike.%${q}%,explanation.ilike.%${q}%`);
+  if (term) {
+    query = query.or(`text.ilike.%${term}%,user_note.ilike.%${term}%,explanation.ilike.%${term}%`);
   }
   const { data: words } = await query;
 

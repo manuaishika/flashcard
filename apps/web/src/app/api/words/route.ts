@@ -15,7 +15,8 @@ export async function GET(req: Request) {
   if (isResponse(ctx)) return ctx;
 
   const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim();
+  // strip characters that would break the PostgREST .or() filter grammar
+  const q = url.searchParams.get("q")?.trim().replace(/[,()\\*]/g, " ").trim();
   const cursor = url.searchParams.get("cursor");
 
   let query = ctx.supabase

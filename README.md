@@ -1,114 +1,65 @@
-# Word Vault
+# Lemma
 
-A personal semantic memory system for capturing words you encounter while reading.
+A personal semantic memory system for the words you meet while reading.
 
-**This is not a dictionary** — it's a note-taking system with semantic anchors. The auto-explanation is just scaffolding. **Your understanding is the real artifact.**
+Capture a word in context → get a short explanation of how it's used *here* →
+write what it means to you. **That note is the artifact.** Spaced review (SM-2)
+brings it back before you forget it.
 
-## How It Works
+> Formerly the "Word Vault" browser extension. Same idea, now a full stack:
+> a Chrome extension for capture, a web app for the vault + review, and a
+> Supabase backend so it syncs across devices.
 
-1. **Highlight any word** while reading (web page or PDF in browser)
-2. **Right-click → "Save to Word Vault"**
-3. **Popup opens** with:
-   - Word (auto-filled)
-   - **Auto-explanation** (faded, collapsible baseline)
-   - **📝 My Understanding** (your mental model, mnemonic, intuition) ← **PRIMARY FOCUS**
-   - Context (optional)
-4. **Press Ctrl+Enter** → saved!
+## Monorepo layout
 
-**To view your vault:** Click the extension icon → **"Vault" tab** → See all your words
+```
+apps/extension     Chrome MV3 extension (TypeScript, esbuild). Capture + save.
+apps/web           Next.js 15 app router. Dashboard, review, and the API.
+packages/shared    @lemma/shared — SM-2 algorithm, domain + API types, text helpers.
+supabase/          Postgres schema, triggers, RLS (7 tables).
+```
 
-## Features
+## Quick start
 
-- **Zero-friction capture** — Right-click any word, save in seconds
-- **Auto-fetch definitions** — Baseline meanings fetched automatically
-- **Your understanding first** — Focus on your mental model, not dictionary definitions
-- **Local storage** — All data stored locally in your browser (export as Markdown anytime)
-- **One-click vault access** — Click extension icon → Vault tab → See all your words
+Prerequisites: Node 20+, pnpm 9+ (`npm i -g pnpm`), a Supabase project, an
+Anthropic API key. Full walkthrough: [`docs/SETUP.md`](docs/SETUP.md).
 
-## Installation
+```bash
+pnpm install
+cp .env.example .env            # fill in Supabase + Anthropic keys
+pnpm --filter @lemma/shared build
 
-### From Chrome Web Store (Coming Soon)
+# apply the database schema (Supabase CLI, or paste supabase/migrations/*.sql
+# into the SQL editor in order)
+pnpm supabase link --project-ref <ref>
+pnpm db:push
 
-This extension will be available on the Chrome Web Store soon.
+pnpm web                        # http://localhost:3000
+LEMMA_API_BASE=http://localhost:3000 pnpm --filter @lemma/extension build
+# then load apps/extension/dist as an unpacked extension at chrome://extensions
+```
 
-### Manual Installation (Developer Mode)
+## What works today (core loop)
 
-1. **Download or clone this repository**
-2. **Generate icons** (if needed):
-   - Open `generate-icons.html` in your browser
-   - Right-click each canvas and save as `icon16.png`, `icon48.png`, `icon128.png`
-   - Place them in the project root
-3. **Load extension**:
-   - Go to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top right)
-   - Click "Load unpacked"
-   - Select the `flashcard` folder
+- Right-click capture of a word + its sentence + page title + URL
+- Context-aware explanation (Claude) with a dictionary fallback, shown recessively
+- Save to Supabase; the vault lists everything, newest first
+- Word detail page with an inline note editor
+- SM-2 review: Again / Hard / Good / Easy, ease + interval compounding, logged
 
-## Usage
+## Not built yet (schema is ready for it)
 
-### Save a Word
+Re-encounter detection (underline saved words as you browse), semantic
+clustering (embeddings + k-means + Claude-named clusters), daily digest email,
+offline capture queue, Chrome Web Store packaging.
 
-**Method 1 (Recommended):** Right-click
-1. Highlight a word on any webpage
-2. Right-click → **"Save '[word]' to Word Vault"**
-3. Popup opens with word pre-filled
-4. Type your understanding (optional)
-5. Press **Ctrl+Enter** or click **Save**
+## Scripts
 
-**Method 2:** Keyboard shortcut
-- Select text → Press `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac)
-
-**Method 3:** Manual entry
-- Click extension icon → "Save" tab → Enter word manually
-
-### View Your Vault
-
-**Click the extension icon** → **"Vault" tab**
-
-- See all your saved words
-- Export as Markdown (download `.md` file)
-- Clear all (if needed)
-
-### Export Your Words
-
-1. Click extension icon → **"Vault" tab**
-2. Click **"Export"** button
-3. Downloads a Markdown file you can open anywhere
-
-## Design Philosophy
-
-- **Baseline meaning** = disposable, auto-fetched, faded
-- **Your understanding** = the real value, prominent, focused
-- **Local-first** = your data stays in your browser (export anytime)
-- **Zero setup** = works immediately, no configuration needed
-
-This trains your brain to value your own understanding over dictionary definitions.
-
-## Data Storage
-
-All words are stored **locally in your browser** using Chrome's storage API. Your data:
-- Stays on your device
-- Never leaves your browser
-- Can be exported as Markdown anytime
-- Survives browser restarts
-
-To export: Extension icon → Vault tab → Export button
-
-## Privacy
-
-- **No servers** — Everything runs locally
-- **No tracking** — No analytics, no data collection
-- **No sync** — Your words stay in your browser
-- **Your data, your control**
-
-## Contributing
-
-This is currently a personal project, but contributions are welcome!
-
-## License
-
-MIT License — Feel free to use, modify, and distribute.
-
----
-
-**Built for people who want to remember words through their own understanding, not dictionary definitions.**
+| Command | What |
+|---|---|
+| `pnpm dev` | turbo `dev` across packages |
+| `pnpm web` | web app only, port 3000 |
+| `pnpm build` | build everything |
+| `pnpm test` | run tests (SM-2 suite) |
+| `pnpm typecheck` | type-check everything |
+| `pnpm db:push` / `pnpm db:reset` | apply / reset the Supabase schema |
