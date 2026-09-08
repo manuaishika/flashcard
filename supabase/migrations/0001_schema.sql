@@ -2,7 +2,7 @@
 -- Philosophy note: `words.explanation` is disposable scaffolding;
 -- `words.user_note` is the artifact.
 
-create extension if not exists vector;
+create extension if not exists vector with schema extensions;
 
 -- 1. profiles -------------------------------------------------------------
 create table public.profiles (
@@ -62,7 +62,7 @@ create index review_logs_card_idx on public.review_logs (card_id, reviewed_at de
 create table public.word_embeddings (
   word_id    uuid primary key references public.words (id) on delete cascade,
   user_id    uuid not null references auth.users (id) on delete cascade,
-  embedding  vector(1536) not null,
+  embedding  extensions.vector(1536) not null,
   model      text not null,
   created_at timestamptz not null default now()
 );
@@ -72,7 +72,7 @@ create table public.clusters (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users (id) on delete cascade,
   name       text not null,
-  centroid   vector(1536),
+  centroid   extensions.vector(1536),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

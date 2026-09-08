@@ -15,6 +15,27 @@ pnpm --filter @lemma/shared build
 
 ## 2. Accounts / keys
 
+### Fastest path — all local, no accounts (verified)
+
+If you have Docker running, skip the cloud project entirely:
+
+```bash
+npx supabase start          # first run pulls images (~5 min); prints local keys
+```
+
+Copy the printed `API URL`, `anon key`, and `service_role key` into
+`apps/web/.env.local` (there is already one checked in pointing at the default
+local ports — it works as-is unless you changed them). Then jump to step 4.
+
+`npx supabase start` gives you a real Postgres + Auth with the schema applied.
+The whole loop works; only `/api/explain` degrades — with no `ANTHROPIC_API_KEY`
+it returns the dictionary fallback instead of a Claude explanation.
+
+Manage it with `npx supabase stop` / `npx supabase db reset` (re-applies
+migrations + `seed.sql`).
+
+### Cloud path
+
 You need two things for the core loop:
 
 | Key | Where | Env var(s) |

@@ -22,17 +22,17 @@ begin
   ]
   loop
     execute format(
-      'create policy %L on public.%I for select using (auth.uid() = user_id)',
-      t || ': self select', t);
+      'create policy %I on public.%I for select using (auth.uid() = user_id)',
+      t || '_self_select', t);
     execute format(
-      'create policy %L on public.%I for insert with check (auth.uid() = user_id)',
-      t || ': self insert', t);
+      'create policy %I on public.%I for insert with check (auth.uid() = user_id)',
+      t || '_self_insert', t);
     execute format(
-      'create policy %L on public.%I for update using (auth.uid() = user_id) with check (auth.uid() = user_id)',
-      t || ': self update', t);
+      'create policy %I on public.%I for update using (auth.uid() = user_id) with check (auth.uid() = user_id)',
+      t || '_self_update', t);
     execute format(
-      'create policy %L on public.%I for delete using (auth.uid() = user_id)',
-      t || ': self delete', t);
+      'create policy %I on public.%I for delete using (auth.uid() = user_id)',
+      t || '_self_delete', t);
   end loop;
 end $$;
 

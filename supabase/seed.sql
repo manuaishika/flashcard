@@ -1,0 +1,2 @@
+-- Seed data for `supabase db reset`. Empty for now — sign up through the app
+-- to create a user (auth users don't seed cleanly from plain SQL).
